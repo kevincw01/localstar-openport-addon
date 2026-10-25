@@ -1,19 +1,10 @@
 # localstar-openport Home Assistant add-on
 
 Run a local Skyport weather and time server for Venstar ColorTouch thermostats
-as a Home Assistant Supervisor add-on/app. It runs in a separate container and
-continues serving thermostats during Home Assistant Core restarts. Keep the
-existing HA Venstar integration for HVAC controls and entities.
+as a Home Assistant Supervisor add-on/app. Keep the existing HA Venstar integration for HVAC controls and entities.
 
 Home Assistant's **Running** label on the add-on page reports whether this
-container is running. Skyport itself may still be stopped while certificate
-setup is pending or if it needs attention. Open **Web UI** for the live Skyport
-status. If setup is required, generate a certificate and key or upload your
-existing pair there.
-
-This repository contains the add-on at its root. The standalone server and
-command-line SD-card tools are maintained separately in
-[localstar-openport](https://github.com/kevincw01/localstar-openport).
+container is running. Thr local Skyport server itself may still be stopped while certificate setup is pending or if it needs attention. Open the **Web UI** for the live Skyport status. for setup you generate certificates and an sd card image that you write to an sd card which is used to allow your thermostat to communicate with your local skyport server.
 
 ## Install
 
@@ -24,46 +15,31 @@ command-line SD-card tools are maintained separately in
 2. Add `https://github.com/kevincw01/localstar-openport-addon`.
 3. Install **localstar-openport**. The container builds locally on your HA host.
 4. Start the add-on; initial latitude, longitude, and timezone come from Home
-   Assistant, then remain saved until you explicitly change them. Optional
+   Assistant.  Optional
    coordinates and the timezone dropdown let you edit those settings.
    Enable **Start on boot** and **Watchdog**.
-5. Certificate path fields start empty. The add-on serves its setup UI while
-   Skyport stays stopped. Open **Web UI** and choose **Generate certificate and key**, then
-   create an SD-card image for thermostat provisioning. To migrate a server, choose
+5. Certificate path fields start empty. goto the web UI to perform setup.  Choose **Generate certificate and key**, then
+   create an SD-card image for thermostat provisioning. To migrate an server or use your certs and keys, choose
    **Upload and activate** with its existing certificate chain, matching key,
    and public root CA.
-6. Point the local DNS override for `connect.skyport.io` at your HA host, and allow
-   thermostat access to TCP ports **9001** and **41414** there. Keep host port 41414.
+6. On your firewall or router, configure DNS to route `connect.skyport.io` to the IP address of your home assistant server.  if necessary allow your thermostats access to TCP ports **9001** and **41414**.  Thermostats no longer need access to the internet.
 
 One installation serves multiple thermostats. Supports **aarch64** and **amd64**.
-No HACS installation, manually created HA token, or privileged host access is required.
-The add-on uses its Supervisor-provided Core API access once to import HA's initial
-location, then stores it privately. Subsequent starts use the saved values even
-if HA's settings change or Core is unavailable.
-The ingress page offers two certificate workflows:
+The web UI offers two certificate workflows for setup:
 
-- **Generate:** create a unique epoch-valid CA and matching server certificate,
+- **Generate:** create a CA and matching server certificate,
   then create a thermostat SD-card image containing the public root.
-- **Upload:** validate and retain an existing certificate/key pair, preserving
-  the identity already trusted by the thermostats. Upload the matching public
-  root CA as well; it must be the CA already trusted by the thermostats.
+- **Upload:** validate and retain an existing certificate/key pair for the server. Upload a matching public root CA which is used by the thermostat for skyport connection trust.
 
 All three files are stored in persistent add-on data. Successful generation/upload
 fills the certificate, key, and root CA path fields in HA Configuration before
-starting Skyport; refresh that page to see them. Existing `/ssl` file setups remain
-supported when all three paths are explicitly configured. Keys are never replaced
-automatically on restart. Generate/upload actions replace the saved identity when one exists.
+starting Skyport. Generate/upload actions replace an existing saved identity if one exists.
 The SD-card image builder asks for the firmware version shown on the thermostat's
-About screen; it writes the four-byte version stub, gallery index, and active public
-root CA without including or applying firmware.
+About screen; it uses this to ensure the thermostat validates the sd card. If you dont use the correct version number, the thermostat may not allow you to import the new root CA.
 
 ![Thermostat About screen showing the firmware version VH6.93](web/thermostat-about-firmware.jpg)
 
 Enter the value shown beside **Firmware**, including the `VH` prefix.
-The management port is accessible only through Home Assistant ingress.
-Clearing any of the three paths and restarting returns to setup mode while
-retaining stored credentials. Blank fields never select a stored identity or
-search default paths.
 
 ## Home Assistant entities
 
@@ -83,13 +59,6 @@ Thermostats are discovered when they log in to this server. HA can rename the
 resulting devices to match your rooms. This reports the Skyport connection;
 the existing Venstar integration still supplies thermostat controls and indoor
 measurements. Weather values do not prove that a thermostat rendered its screen.
-The Web UI also displays weather and detected clients without MQTT.
-
-See [DOCS.md](DOCS.md) for certificate provisioning, options, backups, migration,
-rollback, and troubleshooting. If migrating an installation from the old combined
-repository, add this repository separately and configure its add-on before
-removing the old installation. The repository change gives it a new Supervisor ID.
-Keep only one of them running on a host at a time, as they use the same ports.
 
 ## Development and tests
 
@@ -116,7 +85,3 @@ The location smoke test uses a disposable Core API proxy to check inheritance,
 static settings, explicit timezone changes, and recovery without touching an HA installation.
 Refresh the published timezone choices with `python3 tools/update_timezones.py`
 after updating the development environment's IANA data.
-
-The server implementation is maintained here for add-on releases. The standalone
-project has its own copy; protocol fixes should be carried to both repositories.
-No deployment configuration, pre-generated certificates, or private keys are included.
