@@ -48,6 +48,8 @@ class TestAddon(unittest.TestCase):
         self.assertEqual(config['name'], 'localstar-openport')
         self.assertEqual(config['version'], VERSION)
         self.assertEqual(config['services'], ['mqtt:want'])
+        self.assertEqual(config['options']['certificate_file'], '')
+        self.assertEqual(config['options']['private_key_file'], '')
         self.assertEqual(repository['name'], 'localstar-openport')
         self.assertEqual(set(config['schema']), set(self.options()))
         self.assertEqual(set(translations['configuration']), set(self.options()))

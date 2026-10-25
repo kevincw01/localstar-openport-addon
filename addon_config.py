@@ -43,6 +43,9 @@ def validate_options(options, *, allow_inherit=False):
     for key in ("mqtt_host", "mqtt_username", "mqtt_password"):
         if not isinstance(options.get(key, ""), str):
             raise ValueError(f"{key} must be text")
+    for key in ('certificate_file', 'private_key_file'):
+        if not isinstance(options.get(key, ''), str):
+            raise ValueError(f'{key} must be a file path')
     port = options.get("mqtt_port", 1883)
     if isinstance(port, bool) or not isinstance(port, int) or not 1 <= port <= 65535:
         raise ValueError("mqtt_port must be a port number from 1 through 65535")
@@ -69,6 +72,6 @@ def server_command(options, cert, key):
 
 def command_from_options(options, ssl_directory="/ssl"):
     validate_options(options)
-    cert = ssl_file(options.get("certificate_file", "localstar-openport/server-chain.pem"), ssl_directory)
-    key = ssl_file(options.get("private_key_file", "localstar-openport/server.key"), ssl_directory)
+    cert = ssl_file(options.get("certificate_file", ""), ssl_directory)
+    key = ssl_file(options.get("private_key_file", ""), ssl_directory)
     return server_command(options, cert, key)

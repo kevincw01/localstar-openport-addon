@@ -53,7 +53,9 @@ def main():
         credentials = ssl_dir / 'localstar-openport'
         generate(credentials)
         before = {path.name: path.read_bytes() for path in credentials.iterdir()}
-        (data / 'options.json').write_text(json.dumps({'timezone': 'Home Assistant', 'mqtt_enabled': False}))
+        cert_paths = {'certificate_file': 'localstar-openport/server-chain.pem',
+                      'private_key_file': 'localstar-openport/server.key'}
+        (data / 'options.json').write_text(json.dumps({'timezone': 'Home Assistant', 'mqtt_enabled': False, **cert_paths}))
         home = {'latitude': 0, 'longitude': 0, 'time_zone': 'Etc/UTC'}
         (fixture / 'home.json').write_text(json.dumps(home))
         context = ssl.create_default_context(cafile=str(credentials / 'root-ca.pem'))
@@ -99,7 +101,7 @@ def main():
             roundtrip('Etc/UTC')
             assert json.loads((data / 'location.json').read_text())['latitude'] == 0
             (data / 'options.json').write_text(json.dumps({
-                'latitude': 1, 'timezone': 'Europe/London', 'mqtt_enabled': False}))
+                'latitude': 1, 'timezone': 'Europe/London', 'mqtt_enabled': False, **cert_paths}))
             docker('restart', '--time', '10', app)
             roundtrip('Europe/London')
             cached = (data / 'location.json').read_bytes()

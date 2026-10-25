@@ -25,6 +25,7 @@
       <p id="server-error" class="error" hidden></p>
     </section>
     <p id="notice" role="status" hidden></p>
+    <p id="setup-notice" class="replacement" role="status" hidden>Skyport stays stopped until a valid certificate chain and private key are configured. Generate a certificate and key or upload your existing pair below. Configuration fields will be filled automatically after setup.</p>
     <section id="replacement" class="replacement" hidden>
       <label><input id="confirm-replace" type="checkbox"> I intend to replace the active certificate pair.</label>
       <p>A newly generated CA must be imported on every thermostat before it can connect. Uploading the same working pair preserves its identity.</p>
@@ -34,7 +35,7 @@
         <p class="eyebrow">NEW INSTALLATION</p><h2 id="generate-heading">Generate new credentials</h2>
         <p>Create a unique root CA and matching server certificate. Download the public CA, then import it on your thermostats using an SD card.</p>
         <p class="note">Credentials are saved in the add-on's persistent storage. Starting or updating the add-on never generates another CA.</p>
-        <button id="generate" type="button">Generate and activate</button>
+        <button id="generate" type="button">Generate certificate and key</button>
       </section>
       <section class="panel" aria-labelledby="upload-heading">
         <p class="eyebrow">EXISTING INSTALLATION</p><h2 id="upload-heading">Upload your working pair</h2>

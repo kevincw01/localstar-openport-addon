@@ -21,7 +21,8 @@ SD-card credential builder are maintained separately in
    Assistant, then remain saved until you explicitly change them. Optional
    coordinates and the timezone dropdown let you edit those settings.
    Enable **Start on boot** and **Watchdog**.
-5. Open **Web UI**. For a new installation, choose **Generate and activate**, then
+5. Certificate path fields start empty. The add-on serves its setup UI while
+   Skyport stays stopped. Open **Web UI** and choose **Generate certificate and key**, then
    download the public root CA for the SD-card tool. To migrate a server, choose
    **Upload and activate** with its existing certificate chain and matching key.
 6. Point the local DNS override for `connect.skyport.io` at your HA host, and allow
@@ -40,10 +41,14 @@ The ingress page offers two certificate workflows:
   the identity already trusted by the thermostats. A public root is optional if
   the uploaded chain does not contain it.
 
-Both are stored privately in persistent add-on data. Existing `/ssl` file setups
-remain supported as a read-only fallback. Keys are never replaced automatically
+Both are stored privately in persistent add-on data. Successful generation/upload
+fills the certificate and key path fields in HA Configuration before starting
+Skyport; refresh that page to see them. Existing `/ssl` file setups remain
+supported when both paths are explicitly configured. Keys are never replaced automatically
 on restart, and replacing an active identity requires explicit confirmation.
 The management port is accessible only through Home Assistant ingress.
+Clearing either path and restarting returns to setup mode while retaining stored
+credentials. Blank fields never select a stored identity or search default paths.
 
 ## Home Assistant entities
 

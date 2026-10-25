@@ -13,7 +13,8 @@ function message(text, error = false) {
 function render(status) {
   active = status.has_identity;
   const certificate = status.certificate;
-  byId("server-status").textContent = status.server_running ? "Server running" : (status.error ? "Needs attention" : (status.has_identity ? "Starting server" : "Waiting for credentials"));
+  byId("server-status").textContent = status.setup_required ? "Certificate setup required" : (status.server_running ? "Server running" : (status.error ? "Needs attention" : "Skyport stopped"));
+  byId("setup-notice").hidden = !status.setup_required;
   byId("server-status").classList.toggle("running", status.server_running);
   const origins = {generated: "Generated in this add-on", uploaded: "Uploaded certificate pair", external_ssl: "Using the existing pair in /ssl"};
   byId("identity-description").textContent = origins[certificate.source] || "Choose a setup method below to start the Skyport server.";
@@ -72,7 +73,7 @@ async function provision(action, fields = {}) {
     render(status);
     byId("confirm-replace").checked = false;
     byId("upload-form").reset();
-    message(action === "generate" ? "New credentials are active. Download the public root CA and import it on your thermostats." : "Your certificate pair is active. The server is ready for thermostat connections.");
+    message(action === "generate" ? "Credentials saved and Configuration paths filled. Download the public root CA and import it on your thermostats. Refresh HA's Configuration page to see the paths." : "Your pair is active and Configuration paths are filled. Refresh HA's Configuration page to see them.");
   } catch (error) {
     message(error.message, true);
   } finally {

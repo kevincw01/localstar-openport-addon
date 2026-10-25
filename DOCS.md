@@ -26,11 +26,13 @@ One installation serves all your thermostats. This release supports `aarch64` an
 
 The **Web UI** is served through authenticated Home Assistant ingress. Its port
 8099 is internal and is not published to your network. The server may initially
-show **Waiting for credentials**; the UI works before any certificate exists.
+show **Certificate setup required**. Both certificate-path fields default to
+empty. The add-on runs the setup UI, but neither Skyport listener starts until a
+valid pair is configured. Open **Web UI** to generate or upload a pair.
 
 ### New installation: generate credentials
 
-1. Choose **Generate and activate**. The add-on generates independent random RSA
+1. Choose **Generate certificate and key**. The add-on generates independent random RSA
    CA and server keys, a root CA, and a server certificate covering Skyport names.
 2. Download **public root CA**. Both root and leaf are valid from 1970-01-01 through
    2037-12-12 so a thermostat with an unset clock can validate them.
@@ -71,6 +73,11 @@ validation on the target thermostat; software tests cannot prove on-device impor
 
 Generation and upload explicitly activate a new profile and restart the Skyport
 listeners. If an identity already exists, confirm replacement on the page first.
+The add-on automatically saves the chain/key paths into HA's Configuration before
+starting the listeners. These are file paths, never private-key contents. Refresh
+the Configuration page to see them. If saving fails, Skyport remains stopped or
+rolls back to the prior working setup. No user-created HA token is required to
+update the add-on's own options.
 Replacing it with a different CA requires importing that CA on every thermostat.
 Invalid uploads leave the active identity unchanged. If the new server cannot
 start, activation rolls back to the previous identity.
@@ -85,10 +92,21 @@ child if it exits, while retaining the same selected profile.
 
 ### Existing file-based setup (still supported)
 
-If there is no managed profile, the add-on can use the configured pair in the
-read-only shared SSL directory. Existing installations can continue using this
-setup without uploading or generating anything. A managed profile takes precedence
-after you activate one through the Web UI.
+The add-on can also use an explicitly configured pair in the read-only shared
+SSL directory. Existing installations can continue using this setup without
+uploading or generating anything. Both path fields must be populated.
+
+Managed setup fills paths such as `/data/certificates/<profile>/server-chain.pem`
+and `/data/certificates/<profile>/server.key`. These are validated as the exact
+chain/key files in one private managed profile. Arbitrary absolute paths and
+paths escaping private storage are rejected. External SSL paths remain relative
+to `/ssl`, as in the example below.
+
+Clearing either path and restarting stops Skyport and returns to setup mode,
+even when an older managed identity or files in `/ssl` still exist. Stored keys
+are retained. There is no implicit default path or managed-profile fallback.
+During upgrade, a verified legacy managed pair is mapped to its real paths once,
+but blank settings are never filled by migration.
 
 Using Samba or an SSH/file-management add-on with SSL directory access, create
 `localstar-openport` in HA's shared **SSL** directory and copy these files there:
@@ -133,9 +151,9 @@ sync_time: true
 allow_old_tls: false
 ```
 
-The certificate/key path options apply to the optional file-based fallback only.
-They are relative to `/ssl` and must resolve inside that directory.
-Absolute paths and escaping symlinks are rejected. The add-on validates the matching
+Certificate/key fields are filled automatically by Web UI setup. If you choose
+external files instead, their paths are relative to `/ssl` and must resolve inside
+that directory. Only managed paths may be absolute. The add-on validates the matching
 key/certificate pair and location options before launching the server.
 
 Initial location defaults are read from HA's `/api/config` using the Supervisor Core

@@ -15,6 +15,7 @@ from addon_config import server_command, ssl_file, validate_options
 from certificate_store import CertificateStore, validate_pair
 from telemetry import Telemetry
 from mqtt_entities import MqttEntities
+from supervisor_options import save_certificate_paths
 
 SUPERVISOR_IP = "172.30.32.2"
 WEB_DIRECTORY = Path(__file__).with_name("web")
@@ -36,20 +37,52 @@ class ServerManager:
         self.mqtt = MqttEntities(self)
 
     def _external_profile(self):
-        cert = ssl_file(self.options.get("certificate_file", "localstar-openport/server-chain.pem"), self.ssl_directory)
-        key = ssl_file(self.options.get("private_key_file", "localstar-openport/server.key"), self.ssl_directory)
+        cert = ssl_file(self.options.get("certificate_file", ""), self.ssl_directory)
+        key = ssl_file(self.options.get("private_key_file", ""), self.ssl_directory)
         _, _, root, metadata = validate_pair(cert.read_bytes(), key.read_bytes())
         return metadata | {"source": "external_ssl", "id": None, "certificate": cert,
                            "key": key, "root_pem": root}
 
+    def _paths(self, profile):
+        return {'certificate_file': str(profile['certificate'].resolve()),
+                'private_key_file': str(profile['key'].resolve())}
+
+    async def _set_paths(self, paths):
+        await save_certificate_paths(self.store.directory.parent, paths)
+        self.options.update(paths)
+
+    def _configured_profile(self):
+        cert, key = (self.options.get(name, '') for name in ('certificate_file', 'private_key_file'))
+        if Path(cert).is_absolute() or Path(key).is_absolute():
+            return self.store.configured(cert, key)
+        return self._external_profile()
+
+    async def _migrate_paths(self):
+        marker = self.store.directory.parent / 'certificate-paths-v1'
+        if marker.exists():
+            return
+        # Older releases selected a managed identity ahead of their configured
+        # SSL paths. Preserve that working pair, but never fill blank settings.
+        if all(self.options.get(name, '') for name in ('certificate_file', 'private_key_file')):
+            previous = await asyncio.to_thread(self.store.current)
+            if previous is not None:
+                previous = await asyncio.to_thread(self.store.configured,
+                                                  previous['certificate'], previous['key'])
+                await self._set_paths(self._paths(previous))
+        marker.touch(mode=0o600, exist_ok=True)
+
     async def start(self):
+        self.profile = None
         try:
-            self.profile = await asyncio.to_thread(self.store.current)
-            if self.profile is None:
-                self.profile = await asyncio.to_thread(self._external_profile)
+            await self._migrate_paths()
+            if not all(self.options.get(name, '') for name in ('certificate_file', 'private_key_file')):
+                print('Certificate setup required. Skyport is stopped. Open Web UI to generate a certificate and key or upload an existing pair.', flush=True)
+            else:
+                self.profile = await asyncio.to_thread(self._configured_profile)
         except FileNotFoundError:
-            print("No certificate pair yet. Open Web UI to generate or upload one.", flush=True)
-        except (OSError, ValueError) as exc:
+            self.error = 'Configured certificate files are missing. Open Web UI to generate or upload a pair.'
+            print(self.error, flush=True)
+        except (OSError, ValueError, RuntimeError) as exc:
             self.error = str(exc)
             print("Certificate setup requires attention; open Web UI.", flush=True)
         if self.profile is not None:
@@ -76,6 +109,8 @@ class ServerManager:
                 self.ready.add("session")
 
     async def _launch(self, profile):
+        if not all(self.options.get(name, '') for name in ('certificate_file', 'private_key_file')):
+            raise RuntimeError('Certificate setup required. Open Web UI to generate or upload a pair.')
         command = await asyncio.to_thread(server_command, self.options,
                                           profile["certificate"], profile["key"])
         self.ready = set()
@@ -132,12 +167,21 @@ class ServerManager:
     async def activate(self, profile):
         """Called under lock; roll back to the previous identity if startup fails."""
         previous = self.profile
+        previous_paths = {name: self.options.get(name, '') for name in ('certificate_file', 'private_key_file')}
         await self._stop_process()
         try:
+            await self._set_paths(self._paths(profile))
+            (self.store.directory.parent / 'certificate-paths-v1').touch(mode=0o600, exist_ok=True)
             await self._launch(profile)
             await asyncio.to_thread(self.store.activate, profile)
         except BaseException:
             await self._stop_process()
+            try:
+                await self._set_paths(previous_paths)
+            except (OSError, ValueError, RuntimeError):
+                self.profile = None
+                self.error = 'Could not restore certificate paths in HA. Skyport remains stopped; check Configuration and retry.'
+                raise RuntimeError(self.error) from None
             if previous is not None:
                 try:
                     await self._launch(previous)
@@ -160,6 +204,8 @@ class ServerManager:
         running = self.process is not None and self.process.returncode is None and self.ready == {"entry", "session"}
         profile = self.profile or {}
         return {"server_running": running, "error": self.error,
+                "setup_required": self.profile is None or not all(self.options.get(name, '') for name in ('certificate_file', 'private_key_file')),
+                "configured_paths": {name: self.options.get(name, '') for name in ('certificate_file', 'private_key_file')},
                 "has_identity": bool(self.profile) or (self.store.directory / "current.json").exists(),
                 "mqtt": self.mqtt.status,
                 "certificate": {key: profile.get(key) for key in

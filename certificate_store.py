@@ -192,6 +192,22 @@ class CertificateStore:
         return metadata | {'id': path.name, 'certificate': path / 'server-chain.pem',
                            'key': path / 'server.key', 'root': path / 'root-ca.pem'}
 
+    def configured(self, certificate, key):
+        """Only accept the exact chain/key files in one private managed profile."""
+        base = self.directory.resolve(strict=True)
+        cert_path, key_path = Path(certificate).resolve(strict=True), Path(key).resolve(strict=True)
+        try:
+            cert_parts, key_parts = cert_path.relative_to(base).parts, key_path.relative_to(base).parts
+        except ValueError as exc:
+            raise ValueError('Managed certificate paths must stay inside private certificate storage') from exc
+        if (len(cert_parts) != 2 or len(key_parts) != 2 or
+                not re.fullmatch(r'[0-9a-f]{32}', cert_parts[0]) or
+                key_parts != (cert_parts[0], 'server.key') or cert_parts[1] != 'server-chain.pem'):
+            raise ValueError('Select the certificate chain and key from the same managed profile')
+        profile = self.profile(base / cert_parts[0])
+        _, _, _, metadata = validate_pair(cert_path.read_bytes(), key_path.read_bytes())
+        return profile | metadata
+
     def prepare_generated(self):
         path = self.directory / uuid.uuid4().hex
         try:

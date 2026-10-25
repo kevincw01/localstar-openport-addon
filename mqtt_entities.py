@@ -9,7 +9,7 @@ import ssl
 import aiomqtt
 from aiohttp import ClientSession, ClientTimeout
 
-VERSION = "1.2.3"
+VERSION = "1.2.4"
 URL = "https://github.com/kevincw01/localstar-openport-addon"
 
 # key, name, device class, unit; weather sensors use the very same cached

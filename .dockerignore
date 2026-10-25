@@ -9,5 +9,6 @@
 !telemetry.py
 !mqtt_entities.py
 !location.py
+!supervisor_options.py
 !web/
 !web/**

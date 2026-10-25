@@ -26,6 +26,7 @@ def smoke(image, sudo=False):
     prefix = ['sudo', 'docker'] if sudo else ['docker']
     suffix = uuid.uuid4().hex[:10]
     name, network = 'localstar-cert-test-' + suffix, 'localstar-cert-net-' + suffix
+    supervisor = 'localstar-supervisor-test-' + suffix
 
     def docker(*args, input=None):
         return subprocess.check_output([*prefix, *args], input=input, text=True, stderr=subprocess.PIPE).strip()
@@ -84,7 +85,32 @@ except urllib.error.HTTPError as error:
         try:
             docker('network', 'create', '--subnet', '172.30.32.0/29', network)
             created_network = True
+            # Exercise actual Supervisor option persistence rather than the
+            # local-development writer. This stub owns only disposable options.
+            api = '''
+import json,pathlib
+from http.server import BaseHTTPRequestHandler,HTTPServer
+path=pathlib.Path('/control/options.json')
+class Handler(BaseHTTPRequestHandler):
+ def do_GET(self):
+  if self.path!='/addons/self/info' or self.headers.get('Authorization')!='Bearer disposable-token':
+   self.send_error(403);return
+  data=json.dumps({'result':'ok','data':{'options':json.loads(path.read_text())}}).encode()
+  self.send_response(200);self.send_header('Content-Type','application/json');self.end_headers();self.wfile.write(data)
+ def do_POST(self):
+  if self.path!='/addons/self/options' or self.headers.get('Authorization')!='Bearer disposable-token':
+   self.send_error(403);return
+  body=json.loads(self.rfile.read(int(self.headers['Content-Length'])))
+  path.write_text(json.dumps(body['options']))
+  self.send_response(200);self.send_header('Content-Type','application/json');self.end_headers();self.wfile.write(b'{"result":"ok","data":{}}')
+ def log_message(self,*args):pass
+HTTPServer(('0.0.0.0',80),Handler).serve_forever()
+'''
+            docker('run', '--detach', '--name', supervisor, '--network', network, '--ip', '172.30.32.4',
+                   '--network-alias', 'supervisor', '--mount', f'type=bind,source={data},target=/control',
+                   image, 'python3', '-u', '-c', api)
             docker('run', '--detach', '--name', name, '--network', network, '--ip', '172.30.32.3',
+                   '-e', 'SUPERVISOR_TOKEN=disposable-token',
                    '--user', f'{os.getuid()}:{os.getgid()}',
                    '--mount', f'type=bind,source={data},target=/data',
                    '--mount', f'type=bind,source={ssl_dir},target=/ssl,readonly',
@@ -100,6 +126,8 @@ except urllib.error.HTTPError as error:
                         raise
                     time.sleep(.2)
             assert not json.loads(status['body'])['has_identity']
+            assert json.loads(status['body'])['setup_required']
+            assert not json.loads(status['body'])['server_running']
             assert list((data / 'certificates').iterdir()) == []
             denied = docker('exec', name, 'python3', '-c',
                             "import urllib.request,urllib.error\ntry: urllib.request.urlopen('http://127.0.0.1:8099/')\nexcept urllib.error.HTTPError as e: print(e.code)")
@@ -110,6 +138,10 @@ except urllib.error.HTTPError as error:
             generated_status = json.loads(generated['body'])
             assert generated_status['server_running']
             assert generated_status['certificate']['source'] == 'generated'
+            configured = json.loads((data/'options.json').read_text())
+            assert configured['certificate_file'].startswith('/data/certificates/')
+            assert configured['private_key_file'].endswith('/server.key')
+            assert configured['latitude'] == 0 and configured['timezone'] == 'Etc/UTC'
             root = proxy('root-ca.pem')
             assert root['status'] == 200 and 'PRIVATE KEY' not in root['body']
             ca_file = base / 'downloaded-root.pem'
@@ -150,13 +182,34 @@ except urllib.error.HTTPError as error:
                         raise
                     time.sleep(.3)
             assert json.loads(proxy()['body'])['certificate']['fingerprint'] == imported_status['certificate']['fingerprint']
-            print('PASS: ingress-only access, CSRF, unique generation, public download, persistent restart, existing-pair upload and child recovery')
+            configured = json.loads((data/'options.json').read_text())
+            configured.update(certificate_file='', private_key_file='')
+            (data/'options.json').write_text(json.dumps(configured))
+            pointer = (data/'certificates/current.json').read_bytes()
+            docker('restart', '--time', '10', name)
+            deadline = time.monotonic() + 20
+            while True:
+                try:
+                    setup = json.loads(proxy()['body'])
+                    assert setup['setup_required'] and not setup['server_running']
+                    break
+                except subprocess.CalledProcessError:
+                    if time.monotonic() >= deadline:
+                        raise
+                    time.sleep(.2)
+            assert (data/'certificates/current.json').read_bytes() == pointer
+            listeners = docker('exec', name, 'python3', '-c',
+                "import socket\nfor port in (9001,41414):\n with socket.socket() as s: assert s.connect_ex(('127.0.0.1',port)) != 0\nprint('stopped')")
+            assert listeners == 'stopped'
+            print('PASS: ingress setup mode, Supervisor auto-filled paths, generation/upload, TLS, persistence, recovery and cleared-path listener gate')
         except BaseException:
             with __import__('contextlib').suppress(Exception):
                 print(docker('logs', name), file=sys.stderr)
+                print(docker('logs', supervisor), file=sys.stderr)
             raise
         finally:
             subprocess.run([*prefix, 'rm', '-f', name], capture_output=True, check=False)
+            subprocess.run([*prefix, 'rm', '-f', supervisor], capture_output=True, check=False)
             if created_network:
                 subprocess.run([*prefix, 'network', 'rm', network], capture_output=True, check=False)
 

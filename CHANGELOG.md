@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.4
+
+- Start with empty certificate paths and a setup-only Web UI; Skyport listeners remain stopped until a valid pair is configured.
+- Fill both HA Configuration path fields after generation/upload, preserving other options; require successful persistence before starting listeners.
+- Return to setup mode when either field is cleared, retaining stored credentials and eliminating implicit file/profile fallback.
+- Preserve verified legacy managed identities through a one-time path migration; blank settings are never migrated.
+
 ## 1.2.3
 
 - Add a gold star with a blue nautical porthole as the Home Assistant app icon.

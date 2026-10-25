@@ -102,15 +102,8 @@ class TestCertificateStore(unittest.TestCase):
 
 class FakeManager(ServerManager):
     """Keep HTTP tests independent of fixed production listener ports."""
-    async def start(self):
-        self.profile = self.store.current()
-
-    async def close(self):
+    async def _launch(self, profile):
         pass
-
-    async def activate(self, profile):
-        self.store.activate(profile)
-        self.profile = profile
 
 
 class TestIngress(unittest.IsolatedAsyncioTestCase):
@@ -134,6 +127,10 @@ class TestIngress(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.status, 200, await response.text())
         status = await response.json()
         self.assertEqual(status['certificate']['source'], 'generated')
+        self.assertFalse(status['setup_required'])
+        saved = json.loads((self.base/'options.json').read_text())
+        self.assertEqual(saved['certificate_file'], status['configured_paths']['certificate_file'])
+        self.assertEqual(saved['private_key_file'], status['configured_paths']['private_key_file'])
         self.assertNotIn('PRIVATE KEY', json.dumps(status))
         download = await self.client.get('/root-ca.pem')
         root = await download.read()
@@ -213,6 +210,7 @@ class TestManager(unittest.IsolatedAsyncioTestCase):
         proposed = await asyncio.to_thread(self.store.prepare_generated)
         self.store.activate(previous)
         self.manager.profile = previous
+        self.manager.options.update(self.manager._paths(previous))
         launches = []
 
         async def launch(profile):
@@ -226,11 +224,83 @@ class TestManager(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(launches, [proposed['id'], previous['id']])
         self.assertEqual(self.store.current()['id'], previous['id'])
         self.assertEqual(self.manager.profile['id'], previous['id'])
+        self.assertEqual(self.manager.options['certificate_file'], str(previous['certificate']))
 
     async def test_persistent_profile_starts_same_identity(self):
         profile = await asyncio.to_thread(self.store.prepare_generated)
         self.store.activate(profile)
+        self.manager.options.update(self.manager._paths(profile))
         with patch.object(self.manager, '_launch', new_callable=AsyncMock) as launch:
             await self.manager.start()
             self.assertEqual(launch.call_args.args[0]['id'], profile['id'])
         self.assertEqual(self.store.current()['id'], profile['id'])
+
+    async def test_blank_paths_block_stored_identity_and_existing_ssl_files(self):
+        profile = await asyncio.to_thread(self.store.prepare_generated)
+        self.store.activate(profile)
+        await asyncio.to_thread(fixture_generate, self.base/'ssl/localstar-openport')
+        for paths in ({}, {'certificate_file': str(profile['certificate'])},
+                      {'private_key_file': str(profile['key'])}):
+            manager = ServerManager(options() | paths, self.store, self.base/'ssl')
+            try:
+                with patch.object(manager, '_launch', new_callable=AsyncMock) as launch:
+                    await manager.start()
+                    launch.assert_not_called()
+                self.assertTrue(manager.status()['setup_required'])
+                self.assertFalse(manager.status()['server_running'])
+            finally:
+                await manager.close()
+        self.assertEqual(self.store.current()['id'], profile['id'])
+
+    async def test_activation_fills_paths_before_start_and_preserves_other_options(self):
+        (self.base/'options.json').write_text(json.dumps({'timezone': 'Home Assistant', 'mqtt_enabled': False}))
+        profile = await asyncio.to_thread(self.store.prepare_generated)
+
+        async def launch(selected):
+            saved = json.loads((self.base/'options.json').read_text())
+            self.assertEqual(saved['certificate_file'], str(profile['certificate']))
+            self.assertEqual(saved['private_key_file'], str(profile['key']))
+            self.assertEqual(saved['timezone'], 'Home Assistant')
+            self.assertFalse(saved['mqtt_enabled'])
+            self.assertEqual(self.manager.options['certificate_file'], saved['certificate_file'])
+
+        with patch.object(self.manager, '_launch', side_effect=launch):
+            await self.manager.activate(profile)
+        self.assertFalse(self.manager.status()['setup_required'])
+        self.manager.options.update(certificate_file='', private_key_file='')
+        with patch.object(self.manager, '_launch', new_callable=AsyncMock) as launch:
+            await self.manager.start()
+            launch.assert_not_called()
+        self.assertTrue(self.manager.status()['setup_required'])
+
+    async def test_option_save_failure_never_launches_skyport(self):
+        profile = await asyncio.to_thread(self.store.prepare_generated)
+        with patch('management.save_certificate_paths', new_callable=AsyncMock,
+                   side_effect=RuntimeError('Supervisor unavailable')), \
+                patch.object(self.manager, '_launch', new_callable=AsyncMock) as launch:
+            with self.assertRaises(RuntimeError):
+                await self.manager.activate(profile)
+            launch.assert_not_called()
+        self.assertTrue(self.manager.status()['setup_required'])
+        self.assertIsNone(self.manager.process)
+
+    async def test_legacy_managed_identity_is_migrated_only_with_nonblank_options(self):
+        profile = await asyncio.to_thread(self.store.prepare_generated)
+        self.store.activate(profile)
+        self.manager.options.update(certificate_file='localstar-openport/server-chain.pem',
+                                    private_key_file='localstar-openport/server.key')
+        with patch.object(self.manager, '_launch', new_callable=AsyncMock) as launch:
+            await self.manager.start()
+            self.assertEqual(launch.call_args.args[0]['id'], profile['id'])
+        saved = json.loads((self.base/'options.json').read_text())
+        self.assertEqual(saved['certificate_file'], str(profile['certificate']))
+
+    async def test_managed_pair_paths_cannot_escape_or_mix_profiles(self):
+        first = await asyncio.to_thread(self.store.prepare_generated)
+        second = await asyncio.to_thread(self.store.prepare_generated)
+        with self.assertRaises(ValueError):
+            self.store.configured(first['certificate'], second['key'])
+        outside = self.base/'outside'
+        await asyncio.to_thread(fixture_generate, outside)
+        with self.assertRaises(ValueError):
+            self.store.configured(outside/'server-chain.pem', outside/'server.key')

@@ -27,11 +27,11 @@ configuration:
     name: Timezone
     description: Home Assistant imports the timezone only at initial setup, then keeps it saved. Choose an explicit IANA zone to change it; restart to apply.
   certificate_file:
-    name: External certificate chain (optional fallback)
-    description: Path relative to /ssl, used only until credentials are generated or uploaded in Web UI.
+    name: Server certificate chain path
+    description: Leave empty for setup mode, then open Web UI to generate or upload. Filled automatically after setup. External file paths are relative to /ssl.
   private_key_file:
-    name: External private key (optional fallback)
-    description: Path relative to /ssl, used only until a managed certificate pair is activated in Web UI.
+    name: Private key path
+    description: Filled automatically after Web UI setup. Skyport stays stopped if either path is empty. This field contains a path, never private-key contents.
   sync_time:
     name: Synchronize thermostat time
     description: Respond to time requests using the configured timezone.
