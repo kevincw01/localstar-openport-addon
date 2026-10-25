@@ -1,7 +1,7 @@
 name: localstar-openport
-version: "1.2.5"
+version: "1.2.6"
 slug: localstar_openport
-description: Venstar Skyport weather/time server. Home Assistant's Running label means the add-on container is up; open Web UI for live Skyport status and setup.
+description: Skyport may be stopped even when this add-on says Running. Open Web UI for live status; if setup is required, generate a certificate and key or upload your existing pair.
 url: https://github.com/kevincw01/localstar-openport-addon
 arch:
   - aarch64

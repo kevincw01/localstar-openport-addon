@@ -8,7 +8,8 @@ existing HA Venstar integration for HVAC controls and entities.
 Home Assistant's **Running** label on the add-on page reports whether this
 container is running. Skyport itself may still be stopped while certificate
 setup is pending or if it needs attention. Open **Web UI** for the live Skyport
-status and the steps to start it.
+status. If setup is required, generate a certificate and key or upload your
+existing pair there.
 
 This repository contains the add-on at its root. The standalone server and
 SD-card credential builder are maintained separately in
