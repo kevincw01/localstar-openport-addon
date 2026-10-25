@@ -79,9 +79,9 @@ python3 tests/smoke_mqtt.py
 
 The unit/TLS tests use disposable keys, synthetic weather, and local sockets.
 The Docker smoke test uses temporary credentials, loopback-only host ports,
-and live Open-Meteo data; `--skip-weather` skips provider access in CI.
-Use `--sudo` if your Docker daemon requires it. CI builds and tests on native
-ARM64 and amd64 runners.
+and live Open-Meteo data; `--skip-weather` skips provider access.
+Use `--sudo` if your Docker daemon requires it. These tests can be run locally;
+GitHub Actions test workflows are not configured. The add-on supports ARM64 and amd64.
 The provisioning smoke test uses an isolated Docker network to verify the
 Supervisor-only ingress gate, generation, upload, persistence, and child recovery.
 The MQTT smoke test starts a disposable loopback-only Mosquitto container and
