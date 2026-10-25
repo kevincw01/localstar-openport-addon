@@ -21,7 +21,6 @@ button,.button { display:inline-block; border:0; border-radius:7px; padding:11px
 button:disabled { opacity:.55; cursor:wait; }
 .secondary { background:var(--bg); color:var(--accent); border:1px solid var(--line); margin-bottom:12px; }
 .replacement { padding:18px 22px; background:var(--panel); border:1px solid #c99b35; border-radius:10px; margin-bottom:20px; }
-.replacement label { margin-bottom:6px; }
 .replacement p { margin:0; color:var(--muted); }
 dl { display:grid; grid-template-columns:170px 1fr; gap:8px 16px; margin:0 0 20px; }
 dt { color:var(--muted); font-size:13px; }

@@ -121,7 +121,7 @@ class TestIngress(unittest.IsolatedAsyncioTestCase):
         self.token = re.search(r'name="csrf-token" content="([^"]+)"', self.page).group(1)
         self.headers = {'X-CSRF-Token': self.token}
 
-    async def test_generate_download_and_explicit_replacement(self):
+    async def test_generate_action_replaces_identity_without_extra_confirmation(self):
         response = await self.client.post('/api/generate', json={}, headers=self.headers)
         self.assertEqual(response.status, 200, await response.text())
         status = await response.json()
@@ -139,9 +139,6 @@ class TestIngress(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn(b'PRIVATE KEY', root)
         previous = self.store.current()['id']
         response = await self.client.post('/api/generate', json={}, headers=self.headers)
-        self.assertEqual(response.status, 409)
-        self.assertEqual(self.store.current()['id'], previous)
-        response = await self.client.post('/api/generate', json={'replace': True}, headers=self.headers)
         self.assertEqual(response.status, 200)
         self.assertNotEqual(self.store.current()['id'], previous)
         for path in ('/server.key', '/root-ca.key', '/api/private-key'):

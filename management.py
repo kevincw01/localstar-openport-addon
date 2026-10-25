@@ -282,8 +282,6 @@ def create_application(options, data_directory="/data", ssl_directory="/ssl", *,
             if not isinstance(body, dict):
                 raise ValueError("Invalid request body")
             async with manager.lock:
-                if manager.status()["has_identity"] and body.get("replace") is not True:
-                    raise web.HTTPConflict(text="Confirm replacement of the active certificate identity first")
                 profile = None
                 try:
                     if request.match_info["action"] == "generate":

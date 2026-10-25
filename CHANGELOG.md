@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.8
+
+- Remove the redundant replacement checkbox; Generate and Upload actions directly activate the selected identity.
+- Keep a clear warning visible when an existing certificate identity will be replaced.
+
 ## 1.2.7
 
 - Require and validate a public root CA for every configured Skyport identity.

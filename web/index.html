@@ -26,9 +26,8 @@
     </section>
     <p id="notice" role="status" hidden></p>
       <p id="setup-notice" class="replacement" role="status" hidden>Skyport stays stopped until a valid certificate chain, private key, and matching root CA are configured. Generate a complete identity or upload your existing files below. Configuration fields will be filled automatically after setup.</p>
-    <section id="replacement" class="replacement" hidden>
-      <label><input id="confirm-replace" type="checkbox"> I intend to replace the active certificate pair.</label>
-      <p>A newly generated CA must be imported on every thermostat before it can connect. Uploading the same working pair preserves its identity.</p>
+    <section id="replacement" class="replacement" role="status" hidden>
+      <p>These actions replace the saved certificate identity. A newly generated CA must be imported on every thermostat before it can connect. Uploading the same working pair preserves its identity.</p>
     </section>
     <div class="choices">
       <section class="panel" aria-labelledby="generate-heading">
@@ -45,7 +44,7 @@
           <label>Matching private key (unencrypted PEM)<input id="private-key" type="file" accept=".key,.pem" required></label>
           <label>Public root CA certificate (required)<input id="root-ca" type="file" accept=".pem,.crt,.cer" required></label>
           <p class="note">The root CA must match the server chain and be trusted by the thermostats. If this is a new CA, import it to each thermostat with the SD-card tool. Never upload the root CA's private key.</p>
-          <button type="submit">Upload and activate</button>
+          <button id="upload-submit" type="submit">Upload and activate</button>
         </form>
       </section>
     </div>

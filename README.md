@@ -52,7 +52,7 @@ All three files are stored in persistent add-on data. Successful generation/uplo
 fills the certificate, key, and root CA path fields in HA Configuration before
 starting Skyport; refresh that page to see them. Existing `/ssl` file setups remain
 supported when all three paths are explicitly configured. Keys are never replaced
-automatically on restart, and replacing an active identity requires explicit confirmation.
+automatically on restart. Generate/upload actions replace the saved identity when one exists.
 The management port is accessible only through Home Assistant ingress.
 Clearing any of the three paths and restarting returns to setup mode while
 retaining stored credentials. Blank fields never select a stored identity or

@@ -74,7 +74,8 @@ validation on the target thermostat; software tests cannot prove on-device impor
    Using the same working pair requires no new thermostat CA import.
 
 Generation and upload explicitly activate a new profile and restart the Skyport
-listeners. If an identity already exists, confirm replacement on the page first.
+listeners. If an identity already exists, these actions replace it. A newly
+generated CA must be imported to the thermostats before they can reconnect.
 The add-on automatically saves the certificate, key, and root CA paths into HA's
 Configuration before starting the listeners. These are file paths, never private-key contents. Refresh
 the Configuration page to see them. If saving fails, Skyport remains stopped or

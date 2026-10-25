@@ -26,6 +26,8 @@ function render(status) {
   byId("server-error").hidden = !status.error;
   byId("server-error").textContent = status.error || "";
   byId("replacement").hidden = !active;
+  byId("generate").textContent = active ? "Generate and replace active identity" : "Generate certificate and key";
+  byId("upload-submit").textContent = active ? "Upload and activate replacement" : "Upload and activate";
   byId("mqtt-status").textContent = `MQTT: ${status.mqtt || "waiting"}`;
 }
 
@@ -54,24 +56,19 @@ async function refresh() {
 
 async function provision(action, fields = {}) {
   if (busy) return;
-  if (active && !byId("confirm-replace").checked) {
-    message("Confirm replacement of the active certificate pair before continuing.", true);
-    return;
-  }
   busy = true;
   document.querySelectorAll("button").forEach((button) => { button.disabled = true; });
   message(action === "generate" ? "Generating new credentials…" : "Validating and uploading your certificate pair…");
   try {
     const response = await fetch(new URL(`api/${action}`, document.baseURI), {
       method: "POST", headers: {"Content-Type": "application/json", "X-CSRF-Token": token},
-      body: JSON.stringify({...fields, replace: byId("confirm-replace").checked})
+      body: JSON.stringify(fields)
     });
     const text = await response.text();
     let status;
     try { status = JSON.parse(text); } catch (_) { status = {error: text}; }
     if (!response.ok) throw new Error(status.error || "Certificate setup failed.");
     render(status);
-    byId("confirm-replace").checked = false;
     byId("upload-form").reset();
     message(action === "generate" ? "Certificate, key, and root CA saved; all three Configuration paths are filled. Download the public root CA and import it on your thermostats. Refresh HA's Configuration page to see the paths." : "Your certificate, key, and root CA are active; all three Configuration paths are filled. Refresh HA's Configuration page to see them.");
   } catch (error) {
