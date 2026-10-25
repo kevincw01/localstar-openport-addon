@@ -1,7 +1,7 @@
 name: localstar-openport
 version: "1.2.4"
 slug: localstar_openport
-description: Local Skyport weather and time server for Venstar ColorTouch thermostats
+description: Venstar Skyport weather/time server. Home Assistant's Running label means the add-on container is up; open Web UI for live Skyport status and setup.
 url: https://github.com/kevincw01/localstar-openport-addon
 arch:
   - aarch64

@@ -5,6 +5,11 @@ as a Home Assistant Supervisor add-on/app. It runs in a separate container and
 continues serving thermostats during Home Assistant Core restarts. Keep the
 existing HA Venstar integration for HVAC controls and entities.
 
+Home Assistant's **Running** label on the add-on page reports whether this
+container is running. Skyport itself may still be stopped while certificate
+setup is pending or if it needs attention. Open **Web UI** for the live Skyport
+status and the steps to start it.
+
 This repository contains the add-on at its root. The standalone server and
 SD-card credential builder are maintained separately in
 [localstar-openport](https://github.com/kevincw01/localstar-openport).
