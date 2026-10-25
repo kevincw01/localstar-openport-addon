@@ -73,7 +73,7 @@ async function provision(action, fields = {}) {
     render(status);
     byId("confirm-replace").checked = false;
     byId("upload-form").reset();
-    message(action === "generate" ? "Credentials saved and Configuration paths filled. Download the public root CA and import it on your thermostats. Refresh HA's Configuration page to see the paths." : "Your pair is active and Configuration paths are filled. Refresh HA's Configuration page to see them.");
+    message(action === "generate" ? "Certificate, key, and root CA saved; all three Configuration paths are filled. Download the public root CA and import it on your thermostats. Refresh HA's Configuration page to see the paths." : "Your certificate, key, and root CA are active; all three Configuration paths are filled. Refresh HA's Configuration page to see them.");
   } catch (error) {
     message(error.message, true);
   } finally {
@@ -89,9 +89,9 @@ byId("upload-form").addEventListener("submit", async (event) => {
     const cert = byId("certificate").files[0];
     const key = byId("private-key").files[0];
     const root = byId("root-ca").files[0];
-    if (!cert || !key) throw new Error("Select a certificate chain and matching private key.");
-    if (cert.size > 131072 || key.size > 32768 || (root && root.size > 131072)) throw new Error("Selected files exceed the PEM upload limit.");
-    await provision("upload", {certificate: await cert.text(), key: await key.text(), root_ca: root ? await root.text() : ""});
+    if (!cert || !key || !root) throw new Error("Select the certificate chain, matching private key, and public root CA certificate.");
+    if (cert.size > 131072 || key.size > 32768 || root.size > 131072) throw new Error("Selected files exceed the PEM upload limit.");
+    await provision("upload", {certificate: await cert.text(), key: await key.text(), root_ca: await root.text()});
   } catch (error) { message(error.message, true); }
 });
 refresh().catch((error) => message(error.message, true));

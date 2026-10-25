@@ -10,11 +10,11 @@ from zoneinfo import ZoneInfo
 def ssl_file(filename, ssl_directory):
     """Allow only files inside the read-only SSL mount, including after symlinks."""
     if not isinstance(filename, str) or not filename or Path(filename).is_absolute():
-        raise ValueError("Certificate/key filenames must be relative to /ssl")
+        raise ValueError("Certificate, key, and root CA filenames must be relative to /ssl")
     base = Path(ssl_directory).resolve(strict=True)
     path = (base / filename).resolve(strict=True)
     if base not in path.parents or not path.is_file():
-        raise ValueError("Certificate/key files must be regular files inside /ssl")
+        raise ValueError("Certificate, key, and root CA files must be regular files inside /ssl")
     return path
 
 
@@ -43,7 +43,7 @@ def validate_options(options, *, allow_inherit=False):
     for key in ("mqtt_host", "mqtt_username", "mqtt_password"):
         if not isinstance(options.get(key, ""), str):
             raise ValueError(f"{key} must be text")
-    for key in ('certificate_file', 'private_key_file'):
+    for key in ('certificate_file', 'private_key_file', 'root_ca_file'):
         if not isinstance(options.get(key, ''), str):
             raise ValueError(f'{key} must be a file path')
     port = options.get("mqtt_port", 1883)
@@ -74,4 +74,5 @@ def command_from_options(options, ssl_directory="/ssl"):
     validate_options(options)
     cert = ssl_file(options.get("certificate_file", ""), ssl_directory)
     key = ssl_file(options.get("private_key_file", ""), ssl_directory)
+    ssl_file(options.get("root_ca_file", ""), ssl_directory)
     return server_command(options, cert, key)

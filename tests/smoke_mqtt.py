@@ -32,6 +32,7 @@ async def exercise(port):
         store.activate(profile)
         options = {"latitude": 0, "longitude": 0, "timezone": "Etc/UTC",
                    "certificate_file": str(profile["certificate"]), "private_key_file": str(profile["key"]),
+                   "root_ca_file": str(profile["root"]),
                    "mqtt_host": "127.0.0.1", "mqtt_port": port}
         manager = ServerManager(options, store, data / "ssl")
         manager.mqtt.interval = .2

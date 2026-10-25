@@ -37,6 +37,7 @@ class TestAddon(unittest.TestCase):
         return {'latitude': 0.0, 'longitude': 0.0, 'timezone': 'Etc/UTC',
                 'certificate_file': 'localstar-openport/server-chain.pem',
                 'private_key_file': 'localstar-openport/server.key',
+                'root_ca_file': 'localstar-openport/root-ca.pem',
                 'sync_time': True, 'allow_old_tls': False,
                 'mqtt_enabled': True, 'mqtt_host': '', 'mqtt_port': 1883,
                 'mqtt_username': '', 'mqtt_password': '', 'mqtt_tls': False}
@@ -50,6 +51,7 @@ class TestAddon(unittest.TestCase):
         self.assertEqual(config['services'], ['mqtt:want'])
         self.assertEqual(config['options']['certificate_file'], '')
         self.assertEqual(config['options']['private_key_file'], '')
+        self.assertEqual(config['options']['root_ca_file'], '')
         self.assertEqual(repository['name'], 'localstar-openport')
         self.assertEqual(set(config['schema']), set(self.options()))
         self.assertEqual(set(translations['configuration']), set(self.options()))

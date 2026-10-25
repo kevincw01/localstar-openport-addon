@@ -26,9 +26,10 @@ One installation serves all your thermostats. This release supports `aarch64` an
 
 The **Web UI** is served through authenticated Home Assistant ingress. Its port
 8099 is internal and is not published to your network. The server may initially
-show **Certificate setup required**. Both certificate-path fields default to
+show **Certificate setup required**. All three certificate-path fields default to
 empty. The add-on runs the setup UI, but neither Skyport listener starts until a
-valid pair is configured. Open **Web UI** to generate or upload a pair.
+valid certificate chain, matching key, and root CA are configured. Open **Web UI**
+to generate or upload them.
 
 ### New installation: generate credentials
 
@@ -58,14 +59,15 @@ validation on the target thermostat; software tests cannot prove on-device impor
 
 ### Existing installation: upload the working pair
 
-1. Open **Web UI** and select your current server certificate chain (PEM) and
-   its matching, unencrypted private key (PEM) under **Upload your working pair**.
-2. If the chain already contains its self-signed root, leave the public root field
-   empty. Otherwise, optionally supply the public root CA to enable its download.
-   A leaf-only upload can be used without the public root if the device already
-   trusts it. Do not upload the CA's private key.
+1. Open **Web UI** and select your current server certificate chain (PEM),
+   matching unencrypted private key (PEM), and the matching public root CA
+   certificate under **Upload your working pair**.
+2. The root CA must be the trust anchor already installed on the thermostats.
+   If you use a new root, import it to each thermostat with the SD-card tool
+   before they can trust the server. Do not upload the CA's private key.
 3. Select **Upload and activate**. The add-on checks the key match, current
-   certificate validity, Skyport hostname, and signatures of supplied chain links.
+   certificate validity, Skyport hostname, and signatures of the certificate
+   chain and root CA.
    Imported pairs may have a later notBefore than generated pairs; your existing
    working certificates are retained rather than replaced with epoch-dated ones.
 4. After activation, check the displayed fingerprint and the new TLS login logs.
@@ -73,8 +75,8 @@ validation on the target thermostat; software tests cannot prove on-device impor
 
 Generation and upload explicitly activate a new profile and restart the Skyport
 listeners. If an identity already exists, confirm replacement on the page first.
-The add-on automatically saves the chain/key paths into HA's Configuration before
-starting the listeners. These are file paths, never private-key contents. Refresh
+The add-on automatically saves the certificate, key, and root CA paths into HA's
+Configuration before starting the listeners. These are file paths, never private-key contents. Refresh
 the Configuration page to see them. If saving fails, Skyport remains stopped or
 rolls back to the prior working setup. No user-created HA token is required to
 update the add-on's own options.
@@ -92,17 +94,17 @@ child if it exits, while retaining the same selected profile.
 
 ### Existing file-based setup (still supported)
 
-The add-on can also use an explicitly configured pair in the read-only shared
-SSL directory. Existing installations can continue using this setup without
-uploading or generating anything. Both path fields must be populated.
+The add-on can also use explicitly configured certificate, key, and root CA
+files in the read-only shared SSL directory. All three paths must be populated.
 
-Managed setup fills paths such as `/data/certificates/<profile>/server-chain.pem`
-and `/data/certificates/<profile>/server.key`. These are validated as the exact
-chain/key files in one private managed profile. Arbitrary absolute paths and
+Managed setup fills paths such as `/data/certificates/<profile>/server-chain.pem`,
+`/data/certificates/<profile>/server.key`, and
+`/data/certificates/<profile>/root-ca.pem`. These are validated as the exact
+chain/key/root files in one private managed profile. Arbitrary absolute paths and
 paths escaping private storage are rejected. External SSL paths remain relative
 to `/ssl`, as in the example below.
 
-Clearing either path and restarting stops Skyport and returns to setup mode,
+Clearing any of the three paths and restarting stops Skyport and returns to setup mode,
 even when an older managed identity or files in `/ssl` still exist. Stored keys
 are retained. There is no implicit default path or managed-profile fallback.
 During upgrade, a verified legacy managed pair is mapped to its real paths once,
@@ -116,10 +118,12 @@ ssl/
   localstar-openport/
     server-chain.pem
     server.key
+    root-ca.pem
 ```
 
-They appear inside this add-on as `/ssl/localstar-openport/server-chain.pem` and
-`/ssl/localstar-openport/server.key`. The key must remain private and readable by
+They appear inside this add-on as `/ssl/localstar-openport/server-chain.pem`,
+`/ssl/localstar-openport/server.key`, and `/ssl/localstar-openport/root-ca.pem`.
+The root CA must be the trust anchor installed on the thermostats. The key must remain private and readable by
 the add-on. Do not copy the root CA's private key to HA; it is not needed to run
 the server. Protect backups that contain the server key. When making an HA backup,
 include **SSL certificates** as well as this add-on: the shared SSL folder is not
@@ -147,14 +151,17 @@ longitude: -0.1278
 timezone: Europe/London
 certificate_file: localstar-openport/server-chain.pem
 private_key_file: localstar-openport/server.key
+root_ca_file: localstar-openport/root-ca.pem
 sync_time: true
 allow_old_tls: false
 ```
 
-Certificate/key fields are filled automatically by Web UI setup. If you choose
+Certificate, key, and root CA fields are filled automatically by Web UI setup. If you choose
 external files instead, their paths are relative to `/ssl` and must resolve inside
 that directory. Only managed paths may be absolute. The add-on validates the matching
-key/certificate pair and location options before launching the server.
+key/certificate/root CA set and location options before launching the server. The root CA
+must be the public trust anchor installed on each thermostat; a new root must be imported
+to the thermostats with the SD-card tool before they can trust the server.
 
 Initial location defaults are read from HA's `/api/config` using the Supervisor Core
 proxy and its automatically provided token. This requires the add-on's declared

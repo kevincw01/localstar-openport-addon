@@ -39,26 +39,32 @@ class ServerManager:
     def _external_profile(self):
         cert = ssl_file(self.options.get("certificate_file", ""), self.ssl_directory)
         key = ssl_file(self.options.get("private_key_file", ""), self.ssl_directory)
-        _, _, root, metadata = validate_pair(cert.read_bytes(), key.read_bytes())
+        root_path = ssl_file(self.options.get("root_ca_file", ""), self.ssl_directory)
+        _, _, root, metadata = validate_pair(cert.read_bytes(), key.read_bytes(), root_path.read_bytes())
         return metadata | {"source": "external_ssl", "id": None, "certificate": cert,
-                           "key": key, "root_pem": root}
+                           "key": key, "root": root_path, "root_pem": root}
 
     def _paths(self, profile):
         return {'certificate_file': str(profile['certificate'].resolve()),
-                'private_key_file': str(profile['key'].resolve())}
+                'private_key_file': str(profile['key'].resolve()),
+                'root_ca_file': str(profile['root'].resolve())}
 
     async def _set_paths(self, paths):
         await save_certificate_paths(self.store.directory.parent, paths)
         self.options.update(paths)
 
     def _configured_profile(self):
-        cert, key = (self.options.get(name, '') for name in ('certificate_file', 'private_key_file'))
-        if Path(cert).is_absolute() or Path(key).is_absolute():
-            return self.store.configured(cert, key)
+        cert, key, root = (self.options.get(name, '') for name in
+                           ('certificate_file', 'private_key_file', 'root_ca_file'))
+        absolute = [Path(path).is_absolute() for path in (cert, key, root)]
+        if any(absolute):
+            if not all(absolute):
+                raise ValueError('Managed certificate, key, and root CA paths must all use the same storage')
+            return self.store.configured(cert, key, root)
         return self._external_profile()
 
     async def _migrate_paths(self):
-        marker = self.store.directory.parent / 'certificate-paths-v1'
+        marker = self.store.directory.parent / 'certificate-paths-v2'
         if marker.exists():
             return
         # Older releases selected a managed identity ahead of their configured
@@ -67,7 +73,7 @@ class ServerManager:
             previous = await asyncio.to_thread(self.store.current)
             if previous is not None:
                 previous = await asyncio.to_thread(self.store.configured,
-                                                  previous['certificate'], previous['key'])
+                                                  previous['certificate'], previous['key'], previous['root'])
                 await self._set_paths(self._paths(previous))
         marker.touch(mode=0o600, exist_ok=True)
 
@@ -75,8 +81,8 @@ class ServerManager:
         self.profile = None
         try:
             await self._migrate_paths()
-            if not all(self.options.get(name, '') for name in ('certificate_file', 'private_key_file')):
-                print('Certificate setup required. Skyport is stopped. Open Web UI to generate a certificate and key or upload an existing pair.', flush=True)
+            if not all(self.options.get(name, '') for name in ('certificate_file', 'private_key_file', 'root_ca_file')):
+                print('Certificate setup required. Skyport is stopped. Open Web UI to generate a certificate, key, and root CA or upload an existing pair.', flush=True)
             else:
                 self.profile = await asyncio.to_thread(self._configured_profile)
         except FileNotFoundError:
@@ -109,8 +115,8 @@ class ServerManager:
                 self.ready.add("session")
 
     async def _launch(self, profile):
-        if not all(self.options.get(name, '') for name in ('certificate_file', 'private_key_file')):
-            raise RuntimeError('Certificate setup required. Open Web UI to generate or upload a pair.')
+        if not all(self.options.get(name, '') for name in ('certificate_file', 'private_key_file', 'root_ca_file')):
+            raise RuntimeError('Certificate setup required. Open Web UI to generate or upload a certificate, key, and root CA.')
         command = await asyncio.to_thread(server_command, self.options,
                                           profile["certificate"], profile["key"])
         self.ready = set()
@@ -167,11 +173,12 @@ class ServerManager:
     async def activate(self, profile):
         """Called under lock; roll back to the previous identity if startup fails."""
         previous = self.profile
-        previous_paths = {name: self.options.get(name, '') for name in ('certificate_file', 'private_key_file')}
+        previous_paths = {name: self.options.get(name, '') for name in
+                          ('certificate_file', 'private_key_file', 'root_ca_file')}
         await self._stop_process()
         try:
             await self._set_paths(self._paths(profile))
-            (self.store.directory.parent / 'certificate-paths-v1').touch(mode=0o600, exist_ok=True)
+            (self.store.directory.parent / 'certificate-paths-v2').touch(mode=0o600, exist_ok=True)
             await self._launch(profile)
             await asyncio.to_thread(self.store.activate, profile)
         except BaseException:
@@ -204,8 +211,10 @@ class ServerManager:
         running = self.process is not None and self.process.returncode is None and self.ready == {"entry", "session"}
         profile = self.profile or {}
         return {"server_running": running, "error": self.error,
-                "setup_required": self.profile is None or not all(self.options.get(name, '') for name in ('certificate_file', 'private_key_file')),
-                "configured_paths": {name: self.options.get(name, '') for name in ('certificate_file', 'private_key_file')},
+                "setup_required": self.profile is None or not all(self.options.get(name, '') for name in
+                                                                    ('certificate_file', 'private_key_file', 'root_ca_file')),
+                "configured_paths": {name: self.options.get(name, '') for name in
+                                     ('certificate_file', 'private_key_file', 'root_ca_file')},
                 "has_identity": bool(self.profile) or (self.store.directory / "current.json").exists(),
                 "mqtt": self.mqtt.status,
                 "certificate": {key: profile.get(key) for key in
@@ -261,7 +270,7 @@ def create_application(options, data_directory="/data", ssl_directory="/ssl", *,
     async def root_certificate(request):
         root = await asyncio.to_thread(manager.public_root)
         if root is None:
-            raise web.HTTPNotFound(text="No public root is available; upload the root CA if your chain omits it")
+            raise web.HTTPNotFound(text="No public root is available; configure a valid certificate, key, and root CA")
         return web.Response(body=root, content_type="application/x-pem-file",
                             headers={"Content-Disposition": 'attachment; filename="root-ca.pem"'})
 
@@ -282,9 +291,11 @@ def create_application(options, data_directory="/data", ssl_directory="/ssl", *,
                     else:
                         chain, key, root = (body.get(name, "") for name in ("certificate", "key", "root_ca"))
                         if not all(isinstance(value, str) for value in (chain, key, root)):
-                            raise ValueError("Certificate and key must be PEM text")
+                            raise ValueError("Certificate chain, private key, and root CA must be PEM text")
+                        if not root:
+                            raise ValueError('A public root CA certificate is required')
                         profile = await asyncio.to_thread(manager.store.prepare_uploaded,
-                                                          chain.encode(), key.encode(), root.encode() or None)
+                                                          chain.encode(), key.encode(), root.encode())
                     await manager.activate(profile)
                 finally:
                     if profile is not None:

@@ -16,7 +16,8 @@ class TestOptionsWriter(unittest.IsolatedAsyncioTestCase):
             path = Path(directory)/'options.json'
             path.write_text(json.dumps({'timezone': 'Home Assistant', 'mqtt_password': 'disposable'}))
             changes = {'certificate_file': '/data/certificates/example/server-chain.pem',
-                       'private_key_file': '/data/certificates/example/server.key'}
+                       'private_key_file': '/data/certificates/example/server.key',
+                       'root_ca_file': '/data/certificates/example/root-ca.pem'}
             await save_certificate_paths(directory, changes)
             saved = json.loads(path.read_text())
             self.assertEqual(saved, {'timezone': 'Home Assistant', 'mqtt_password': 'disposable', **changes})
@@ -29,7 +30,7 @@ class TestOptionsWriter(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(request.headers['Authorization'], 'Bearer disposable-token')
             return web.json_response({'result': 'ok', 'data': {'options': {
                 'timezone': 'Home Assistant', 'mqtt_password': '!secret broker_password',
-                'certificate_file': '', 'private_key_file': ''}}})
+                'certificate_file': '', 'private_key_file': '', 'root_ca_file': ''}}})
 
         async def update(request):
             self.assertEqual(request.headers['Authorization'], 'Bearer disposable-token')
@@ -43,7 +44,8 @@ class TestOptionsWriter(unittest.IsolatedAsyncioTestCase):
             with patch('supervisor_options.SUPERVISOR_URL', str(server.make_url('')).rstrip('/')), \
                     patch.dict('os.environ', {'SUPERVISOR_TOKEN': 'disposable-token'}):
                 changes = {'certificate_file': '/data/certificates/example/server-chain.pem',
-                           'private_key_file': '/data/certificates/example/server.key'}
+                           'private_key_file': '/data/certificates/example/server.key',
+                           'root_ca_file': '/data/certificates/example/root-ca.pem'}
                 await save_certificate_paths('/unused', changes)
         self.assertEqual(saved, {'options': {'timezone': 'Home Assistant',
             'mqtt_password': '!secret broker_password', **changes}})
@@ -57,7 +59,7 @@ class TestOptionsWriter(unittest.IsolatedAsyncioTestCase):
             with patch('supervisor_options.SUPERVISOR_URL', str(server.make_url('')).rstrip('/')), \
                     patch.dict('os.environ', {'SUPERVISOR_TOKEN': 'disposable-token'}):
                 with self.assertRaises(RuntimeError) as caught:
-                    await save_certificate_paths('/unused', {'certificate_file': '', 'private_key_file': ''})
+                    await save_certificate_paths('/unused', {'certificate_file': '', 'private_key_file': '', 'root_ca_file': ''})
         self.assertNotIn('PRIVATE-response', str(caught.exception))
 
     async def test_writer_rejects_other_configuration_mutations(self):

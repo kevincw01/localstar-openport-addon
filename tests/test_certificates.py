@@ -62,11 +62,10 @@ class TestCertificateStore(unittest.TestCase):
         self.assertFalse((profile['key'].parent / 'root-ca.key').exists())
         validate_pair(profile['certificate'].read_bytes(), profile['key'].read_bytes())
 
-    def test_leaf_only_upload_can_optionally_supply_root(self):
+    def test_leaf_only_upload_requires_matching_root(self):
         leaf = (self.fixture / 'server.pem').read_bytes()
-        no_root = self.store.prepare_uploaded(leaf, self.key)
-        self.assertFalse(no_root['root_available'])
-        self.assertFalse(no_root['root'].exists())
+        with self.assertRaises(ValueError):
+            self.store.prepare_uploaded(leaf, self.key)
         with_root = self.store.prepare_uploaded(leaf, self.key, self.root)
         self.assertTrue(with_root['root_available'])
         self.assertEqual(with_root['certificate'].read_bytes(), self.chain)
@@ -131,6 +130,7 @@ class TestIngress(unittest.IsolatedAsyncioTestCase):
         saved = json.loads((self.base/'options.json').read_text())
         self.assertEqual(saved['certificate_file'], status['configured_paths']['certificate_file'])
         self.assertEqual(saved['private_key_file'], status['configured_paths']['private_key_file'])
+        self.assertEqual(saved['root_ca_file'], status['configured_paths']['root_ca_file'])
         self.assertNotIn('PRIVATE KEY', json.dumps(status))
         download = await self.client.get('/root-ca.pem')
         root = await download.read()
@@ -151,7 +151,8 @@ class TestIngress(unittest.IsolatedAsyncioTestCase):
         fixture = self.base / 'fixture'
         await asyncio.to_thread(fixture_generate, fixture)
         body = {'certificate': (fixture / 'server-chain.pem').read_text(),
-                'key': (fixture / 'server.key').read_text()}
+                'key': (fixture / 'server.key').read_text(),
+                'root_ca': (fixture / 'root-ca.pem').read_text()}
         response = await self.client.post('/api/upload', json=body, headers=self.headers)
         self.assertEqual(response.status, 200, await response.text())
         self.assertEqual((await response.json())['certificate']['source'], 'uploaded')
@@ -299,8 +300,8 @@ class TestManager(unittest.IsolatedAsyncioTestCase):
         first = await asyncio.to_thread(self.store.prepare_generated)
         second = await asyncio.to_thread(self.store.prepare_generated)
         with self.assertRaises(ValueError):
-            self.store.configured(first['certificate'], second['key'])
+        self.store.configured(first['certificate'], second['key'], first['root'])
         outside = self.base/'outside'
         await asyncio.to_thread(fixture_generate, outside)
         with self.assertRaises(ValueError):
-            self.store.configured(outside/'server-chain.pem', outside/'server.key')
+        self.store.configured(outside/'server-chain.pem', outside/'server.key', outside/'root-ca.pem')

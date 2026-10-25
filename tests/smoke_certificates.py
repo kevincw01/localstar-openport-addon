@@ -141,6 +141,7 @@ HTTPServer(('0.0.0.0',80),Handler).serve_forever()
             configured = json.loads((data/'options.json').read_text())
             assert configured['certificate_file'].startswith('/data/certificates/')
             assert configured['private_key_file'].endswith('/server.key')
+            assert configured['root_ca_file'].endswith('/root-ca.pem')
             assert configured['latitude'] == 0 and configured['timezone'] == 'Etc/UTC'
             root = proxy('root-ca.pem')
             assert root['status'] == 200 and 'PRIVATE KEY' not in root['body']
@@ -162,7 +163,8 @@ HTTPServer(('0.0.0.0',80),Handler).serve_forever()
             assert proxy('api/generate', {})['status'] == 409
             uploaded = proxy('api/upload', {
                 'certificate': (fixture / 'server-chain.pem').read_text(),
-                'key': (fixture / 'server.key').read_text(), 'replace': True,
+                'key': (fixture / 'server.key').read_text(),
+                'root_ca': (fixture / 'root-ca.pem').read_text(), 'replace': True,
             })
             assert uploaded['status'] == 200, uploaded
             imported_status = json.loads(uploaded['body'])
@@ -183,7 +185,7 @@ HTTPServer(('0.0.0.0',80),Handler).serve_forever()
                     time.sleep(.3)
             assert json.loads(proxy()['body'])['certificate']['fingerprint'] == imported_status['certificate']['fingerprint']
             configured = json.loads((data/'options.json').read_text())
-            configured.update(certificate_file='', private_key_file='')
+            configured.update(certificate_file='', private_key_file='', root_ca_file='')
             (data/'options.json').write_text(json.dumps(configured))
             pointer = (data/'certificates/current.json').read_bytes()
             docker('restart', '--time', '10', name)

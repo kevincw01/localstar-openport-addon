@@ -27,8 +27,8 @@ def _save_local(directory, changes):
 
 
 async def save_certificate_paths(directory, changes):
-    if set(changes) != {'certificate_file', 'private_key_file'}:
-        raise ValueError('Only certificate paths may be updated by this operation')
+    if set(changes) != {'certificate_file', 'private_key_file', 'root_ca_file'}:
+        raise ValueError('Only certificate and root CA paths may be updated by this operation')
     token = os.environ.get('SUPERVISOR_TOKEN')
     if not token:
         await asyncio.to_thread(_save_local, directory, changes)

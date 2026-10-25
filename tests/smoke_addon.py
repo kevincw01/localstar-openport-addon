@@ -42,6 +42,7 @@ def smoke(image, sudo=False, skip_weather=False):
             'latitude': 0, 'longitude': 0, 'timezone': 'Etc/UTC',
             'certificate_file': 'localstar-openport/server-chain.pem',
             'private_key_file': 'localstar-openport/server.key',
+            'root_ca_file': 'localstar-openport/root-ca.pem',
             'sync_time': True, 'allow_old_tls': False,
         }))
         context = ssl.create_default_context(cafile=str(credentials / 'root-ca.pem'))

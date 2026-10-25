@@ -31,7 +31,10 @@ configuration:
     description: Leave empty for setup mode, then open Web UI to generate or upload. Filled automatically after setup. External file paths are relative to /ssl.
   private_key_file:
     name: Private key path
-    description: Filled automatically after Web UI setup. Skyport stays stopped if either path is empty. This field contains a path, never private-key contents.
+    description: Filled automatically after Web UI setup. Skyport stays stopped if a certificate, key, or root CA path is empty. This field contains a path, never private-key contents.
+  root_ca_file:
+    name: Root CA certificate path
+    description: Required for thermostat trust. Filled automatically after Web UI setup. External file paths are relative to /ssl.
   sync_time:
     name: Synchronize thermostat time
     description: Respond to time requests using the configured timezone.

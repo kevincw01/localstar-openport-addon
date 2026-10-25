@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.2.7
+
+- Require and validate a public root CA for every configured Skyport identity.
+- Add a Root CA certificate path to HA Configuration and fill it after generation or upload.
+- Require the matching public root CA when uploading an existing certificate and key.
+- Keep Skyport stopped until the certificate chain, key, and root CA paths are all valid.
+
+## 1.2.6
+
+- Clarify that the Supervisor Running label only describes the add-on container and direct users to Web UI for Skyport status and setup.
+
+## 1.2.5
+
+- Clarify Skyport's runtime status and setup UI in the add-on description and documentation.
+
 ## 1.2.4
 
 - Start with empty certificate paths and a setup-only Web UI; Skyport listeners remain stopped until a valid pair is configured.

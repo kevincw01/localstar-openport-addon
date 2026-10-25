@@ -95,7 +95,7 @@ def certificates(pem):
 
 
 def validate_pair(chain_pem, key_pem, root_pem=None):
-    """Validate uploaded server material without requiring the private CA key."""
+    """Validate server material and require its public trust root."""
     chain = certificates(chain_pem)
     if not isinstance(key_pem, bytes) or len(key_pem) > 32 * 1024:
         raise ValueError('Supply an unencrypted PEM private key smaller than 32 KiB')
@@ -145,6 +145,8 @@ def validate_pair(chain_pem, key_pem, root_pem=None):
         except Exception as exc:
             raise ValueError('The certificates do not form a valid signed chain') from exc
     root = chain[-1] if len(chain) > 1 and chain[-1].subject == chain[-1].issuer else None
+    if root is None:
+        raise ValueError('A public root CA certificate is required')
     if root is not None:
         try:
             root.verify_directly_issued_by(root)
@@ -192,20 +194,27 @@ class CertificateStore:
         return metadata | {'id': path.name, 'certificate': path / 'server-chain.pem',
                            'key': path / 'server.key', 'root': path / 'root-ca.pem'}
 
-    def configured(self, certificate, key):
-        """Only accept the exact chain/key files in one private managed profile."""
+    def configured(self, certificate, key, root_ca):
+        """Only accept matching chain/key/root files in one private managed profile."""
         base = self.directory.resolve(strict=True)
-        cert_path, key_path = Path(certificate).resolve(strict=True), Path(key).resolve(strict=True)
+        cert_path = Path(certificate).resolve(strict=True)
+        key_path = Path(key).resolve(strict=True)
+        root_path = Path(root_ca).resolve(strict=True)
         try:
-            cert_parts, key_parts = cert_path.relative_to(base).parts, key_path.relative_to(base).parts
+            cert_parts = cert_path.relative_to(base).parts
+            key_parts = key_path.relative_to(base).parts
+            root_parts = root_path.relative_to(base).parts
         except ValueError as exc:
             raise ValueError('Managed certificate paths must stay inside private certificate storage') from exc
         if (len(cert_parts) != 2 or len(key_parts) != 2 or
                 not re.fullmatch(r'[0-9a-f]{32}', cert_parts[0]) or
-                key_parts != (cert_parts[0], 'server.key') or cert_parts[1] != 'server-chain.pem'):
-            raise ValueError('Select the certificate chain and key from the same managed profile')
+                key_parts != (cert_parts[0], 'server.key') or
+                root_parts != (cert_parts[0], 'root-ca.pem') or cert_parts[1] != 'server-chain.pem'):
+            raise ValueError('Select the certificate chain, key, and root CA from the same managed profile')
         profile = self.profile(base / cert_parts[0])
-        _, _, _, metadata = validate_pair(cert_path.read_bytes(), key_path.read_bytes())
+        _, _, root, metadata = validate_pair(cert_path.read_bytes(), key_path.read_bytes(),
+                                             root_path.read_bytes())
+        profile['root_pem'] = root
         return profile | metadata
 
     def prepare_generated(self):
@@ -227,8 +236,7 @@ class CertificateStore:
         try:
             _write(path / 'server-chain.pem', chain)
             _write(path / 'server.key', key)
-            if root is not None:
-                _write(path / 'root-ca.pem', root)
+            _write(path / 'root-ca.pem', root)
             _write(path / 'metadata.json', json.dumps(metadata | {'source': 'uploaded'}).encode())
             return self.profile(path)
         except BaseException:

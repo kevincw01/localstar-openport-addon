@@ -30,7 +30,8 @@ SD-card credential builder are maintained separately in
 5. Certificate path fields start empty. The add-on serves its setup UI while
    Skyport stays stopped. Open **Web UI** and choose **Generate certificate and key**, then
    download the public root CA for the SD-card tool. To migrate a server, choose
-   **Upload and activate** with its existing certificate chain and matching key.
+   **Upload and activate** with its existing certificate chain, matching key,
+   and public root CA.
 6. Point the local DNS override for `connect.skyport.io` at your HA host, and allow
    thermostat access to TCP ports **9001** and **41414** there. Keep host port 41414.
 
@@ -42,19 +43,20 @@ if HA's settings change or Core is unavailable.
 The ingress page offers two certificate workflows:
 
 - **Generate:** create a unique epoch-valid CA and matching server certificate,
-  then download only the public root for thermostat provisioning.
+  then download the public root for thermostat provisioning.
 - **Upload:** validate and retain an existing certificate/key pair, preserving
-  the identity already trusted by the thermostats. A public root is optional if
-  the uploaded chain does not contain it.
+  the identity already trusted by the thermostats. Upload the matching public
+  root CA as well; it must be the CA already trusted by the thermostats.
 
-Both are stored privately in persistent add-on data. Successful generation/upload
-fills the certificate and key path fields in HA Configuration before starting
-Skyport; refresh that page to see them. Existing `/ssl` file setups remain
-supported when both paths are explicitly configured. Keys are never replaced automatically
-on restart, and replacing an active identity requires explicit confirmation.
+All three files are stored in persistent add-on data. Successful generation/upload
+fills the certificate, key, and root CA path fields in HA Configuration before
+starting Skyport; refresh that page to see them. Existing `/ssl` file setups remain
+supported when all three paths are explicitly configured. Keys are never replaced
+automatically on restart, and replacing an active identity requires explicit confirmation.
 The management port is accessible only through Home Assistant ingress.
-Clearing either path and restarting returns to setup mode while retaining stored
-credentials. Blank fields never select a stored identity or search default paths.
+Clearing any of the three paths and restarting returns to setup mode while
+retaining stored credentials. Blank fields never select a stored identity or
+search default paths.
 
 ## Home Assistant entities
 
