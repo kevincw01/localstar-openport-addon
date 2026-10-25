@@ -1,0 +1,55 @@
+# localstar-openport Home Assistant add-on
+
+Run a local Skyport weather and time server for Venstar ColorTouch thermostats
+as a Home Assistant Supervisor add-on/app. It runs in a separate container and
+continues serving thermostats during Home Assistant Core restarts. Keep the
+existing HA Venstar integration for HVAC controls and entities.
+
+This repository contains the add-on at its root. The standalone server and
+SD-card credential builder are maintained separately in
+[localstar-openport](https://github.com/kevincw01/localstar-openport).
+
+## Install
+
+[Add this repository to Home Assistant](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fkevincw01%2Flocalstar-openport-addon)
+
+1. Open **Settings > Add-ons > Add-on Store > ⋮ > Repositories** (or the Apps store
+   on versions using that name).
+2. Add `https://github.com/kevincw01/localstar-openport-addon`.
+3. Install **localstar-openport**. The container builds locally on your HA host.
+4. Copy your working `server-chain.pem` and `server.key` to the shared HA SSL
+   directory under `localstar-openport/`.
+5. Set your latitude, longitude, and IANA timezone in Configuration, then start
+   the add-on. Enable **Start on boot** and **Watchdog**.
+6. Point the local DNS override for `connect.skyport.io` at your HA host, and allow
+   thermostat access to TCP ports **9001** and **41414** there. Keep host port 41414.
+
+One installation serves multiple thermostats. Supports **aarch64** and **amd64**.
+No HACS installation, HA API token, or privileged host access is required.
+Certificates are mounted read-only. The add-on never generates or replaces keys;
+reuse the pair matching the CA already imported on the thermostats.
+
+See [DOCS.md](DOCS.md) for certificate provisioning, options, backups, migration,
+rollback, and troubleshooting. If migrating an installation from the old combined
+repository, add this repository separately and configure its add-on before
+removing the old installation. The repository change gives it a new Supervisor ID.
+Keep only one of them running on a host at a time, as they use the same ports.
+
+## Development and tests
+
+```sh
+python3 -m pip install -r requirements-dev.txt
+python3 -m unittest discover -s tests -v
+docker build -t localstar-openport:test .
+python3 tests/smoke_addon.py
+```
+
+The unit/TLS tests use disposable keys, synthetic weather, and local sockets.
+The Docker smoke test uses temporary credentials, loopback-only host ports,
+and live Open-Meteo data; `--skip-weather` skips provider access in CI.
+Use `--sudo` if your Docker daemon requires it. CI builds and tests on native
+ARM64 and amd64 runners.
+
+The server implementation is maintained here for add-on releases. The standalone
+project has its own copy; protocol fixes should be carried to both repositories.
+No deployment configuration, pre-generated certificates, or private keys are included.
