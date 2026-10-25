@@ -251,7 +251,7 @@ def create_application(options, data_directory="/data", ssl_directory="/ssl", *,
                                  "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'"})
         return response
 
-    app = web.Application(middlewares=[ingress_access], client_max_size=256 * 1024)
+    app = web.Application(middlewares=[ingress_access], client_max_size=320 * 1024)
 
     async def index(request):
         text = await asyncio.to_thread((WEB_DIRECTORY / "index.html").read_text)
@@ -305,33 +305,77 @@ def create_application(options, data_directory="/data", ssl_directory="/ssl", *,
             return response
 
     async def provision(request):
-        if request.content_type != "application/json":
-            raise web.HTTPUnsupportedMediaType(text="Expected JSON")
+        action = request.match_info["action"]
         try:
-            body = await request.json()
-            if not isinstance(body, dict):
-                raise ValueError("Invalid request body")
+            if action == "generate":
+                if request.content_type != "application/json":
+                    raise web.HTTPUnsupportedMediaType(text="Expected JSON")
+                body = await request.json()
+                if not isinstance(body, dict):
+                    raise ValueError("Invalid request body")
+                upload = None
+            else:
+                limits = {"certificate": 128 * 1024, "key": 32 * 1024, "root_ca": 128 * 1024}
+                if request.content_type == "application/json":
+                    # Continue accepting requests from an already-open older UI.
+                    body = await request.json()
+                    if not isinstance(body, dict) or not all(isinstance(body.get(name), str)
+                                                             for name in limits):
+                        raise ValueError("Select the certificate chain, matching private key, and public root CA")
+                    upload = {name: body[name] for name in limits}
+                    for name, value in upload.items():
+                        if len(value.encode("utf-8")) > limits[name]:
+                            raise web.HTTPRequestEntityTooLarge(max_size=limits[name],
+                                                               actual_size=len(value.encode("utf-8")))
+                elif request.content_type == "multipart/form-data":
+                    reader = await request.multipart()
+                    upload = {}
+                    while part := await reader.next():
+                        name = part.name
+                        if name not in limits or name in upload or not part.filename:
+                            raise ValueError("Choose one certificate chain, private key, and root CA file")
+                        content = bytearray()
+                        while chunk := await part.read_chunk(8192):
+                            content.extend(chunk)
+                            if len(content) > limits[name]:
+                                raise web.HTTPRequestEntityTooLarge(max_size=limits[name],
+                                                                   actual_size=len(content))
+                        try:
+                            upload[name] = bytes(content).decode("utf-8")
+                        except UnicodeDecodeError as exc:
+                            raise ValueError("PEM files must be UTF-8 text") from exc
+                    missing = set(limits) - upload.keys()
+                    if missing:
+                        raise ValueError("Select the certificate chain, matching private key, and public root CA")
+                else:
+                    raise web.HTTPUnsupportedMediaType(text="Upload the three PEM files")
+                print("Certificate upload received " + ", ".join(
+                    f"{name}={len(value.encode('utf-8'))} bytes" for name, value in upload.items()), flush=True)
             async with manager.lock:
                 profile = None
                 try:
-                    if request.match_info["action"] == "generate":
+                    if action == "generate":
                         profile = await asyncio.to_thread(manager.store.prepare_generated)
                     else:
-                        chain, key, root = (body.get(name, "") for name in ("certificate", "key", "root_ca"))
-                        if not all(isinstance(value, str) for value in (chain, key, root)):
-                            raise ValueError("Certificate chain, private key, and root CA must be PEM text")
-                        if not root:
-                            raise ValueError('A public root CA certificate is required')
                         profile = await asyncio.to_thread(manager.store.prepare_uploaded,
-                                                          chain.encode(), key.encode(), root.encode())
+                                                          upload["certificate"].encode(),
+                                                          upload["key"].encode(),
+                                                          upload["root_ca"].encode())
+                        print("Certificate upload validated; activating the selected identity.", flush=True)
                     await manager.activate(profile)
+                    if action == "upload":
+                        print("Certificate upload activated successfully.", flush=True)
                 finally:
                     if profile is not None:
                         await asyncio.to_thread(manager.store.discard, profile)
             return web.json_response(manager.status())
-        except web.HTTPException:
+        except web.HTTPException as exc:
+            if action == "upload":
+                print(f"Certificate upload request rejected (HTTP {exc.status}).", flush=True)
             raise
         except (OSError, ValueError, RuntimeError) as exc:
+            if action == "upload":
+                print(f"Certificate upload failed: {exc}", flush=True)
             return web.json_response({"error": str(exc)}, status=400)
 
     async def startup(app):

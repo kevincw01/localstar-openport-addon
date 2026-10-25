@@ -59,9 +59,16 @@ async function provision(action, fields = {}) {
   document.querySelectorAll("button").forEach((button) => { button.disabled = true; });
   message(action === "generate" ? "Generating new credentials…" : "Validating and uploading your certificate pair…");
   try {
+    const headers = {"X-CSRF-Token": token};
+    let body;
+    if (action === "upload") {
+      body = fields;
+    } else {
+      headers["Content-Type"] = "application/json";
+      body = JSON.stringify(fields);
+    }
     const response = await fetch(new URL(`api/${action}`, document.baseURI), {
-      method: "POST", headers: {"Content-Type": "application/json", "X-CSRF-Token": token},
-      body: JSON.stringify(fields)
+      method: "POST", headers, body
     });
     const text = await response.text();
     let status;
@@ -71,6 +78,7 @@ async function provision(action, fields = {}) {
     byId("upload-form").reset();
     message(action === "generate" ? "Certificate, key, and root CA saved; all three Configuration paths are filled. Create an SD-card image below to import the CA on your thermostats. Refresh HA's Configuration page to see the paths." : "Your certificate, key, and root CA are active; all three Configuration paths are filled. Refresh HA's Configuration page to see them.");
   } catch (error) {
+    if (action === "upload") console.error("Certificate upload failed", error.name, error.message);
     message(error.message, true);
   } finally {
     busy = false;
@@ -87,8 +95,15 @@ byId("upload-form").addEventListener("submit", async (event) => {
     const root = byId("root-ca").files[0];
     if (!cert || !key || !root) throw new Error("Select the certificate chain, matching private key, and public root CA certificate.");
     if (cert.size > 131072 || key.size > 32768 || root.size > 131072) throw new Error("Selected files exceed the PEM upload limit.");
-    await provision("upload", {certificate: await cert.text(), key: await key.text(), root_ca: await root.text()});
-  } catch (error) { message(error.message, true); }
+    const files = new FormData();
+    files.append("certificate", cert, cert.name);
+    files.append("key", key, key.name);
+    files.append("root_ca", root, root.name);
+    await provision("upload", files);
+  } catch (error) {
+    console.error("Could not prepare certificate files for upload", error.name, error.message);
+    message(error.message, true);
+  }
 });
 byId("sd-card-form").addEventListener("submit", async (event) => {
   event.preventDefault();

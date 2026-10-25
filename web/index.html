@@ -23,12 +23,33 @@
       <p id="server-error" class="error" hidden></p>
     </section>
     <p id="notice" role="status" hidden></p>
-      <p id="setup-notice" class="replacement" role="status" hidden>Skyport stays stopped until a valid certificate chain, private key, and matching root CA are configured. Generate a complete identity or upload your existing files below. Configuration fields will be filled automatically after setup.</p>
+    <p id="setup-notice" class="replacement" role="status" hidden>Skyport stays stopped until a valid certificate chain, private key, and matching root CA are configured. Generate a complete identity or upload your existing files below. Configuration fields will be filled automatically after setup.</p>
     <section id="replacement" class="replacement" role="status" hidden>
       <p>These actions replace the saved certificate identity. A newly generated CA must be imported on every thermostat before it can connect. Uploading the same working pair preserves its identity.</p>
     </section>
-    <section id="sd-card" class="panel" aria-labelledby="sd-card-heading" hidden>
-      <p class="eyebrow">THERMOSTAT SETUP</p><h2 id="sd-card-heading">Create an SD-card image</h2>
+    <section class="panel workflow" aria-labelledby="generate-heading">
+      <p class="eyebrow">NEW INSTALLATION</p><h2 id="generate-heading">Generate new credentials</h2>
+      <p>Create a unique root CA and matching server certificate. Create an SD-card image below to import the public CA on your thermostats.</p>
+      <p class="note">Credentials are saved in the add-on's persistent storage. Starting or updating the add-on never generates another CA.</p>
+      <button id="generate" type="button">Generate certificate and key</button>
+    </section>
+    <section class="panel workflow optional-workflow" aria-labelledby="upload-heading">
+      <details>
+        <summary><span class="eyebrow">OPTIONAL · EXISTING INSTALLATION</span><h2 id="upload-heading">Upload your working pair</h2></summary>
+        <div class="optional-content">
+          <p>Migrating an existing server? Use its current certificate chain, matching private key, and the same public root CA already trusted by your thermostats.</p>
+          <form id="upload-form">
+            <label>Server certificate chain (PEM)<input id="certificate" name="certificate" type="file" accept=".pem,.crt,.cer" required></label>
+            <label>Matching private key (unencrypted PEM)<input id="private-key" name="key" type="file" accept=".key,.pem" required></label>
+            <label>Public root CA certificate (required)<input id="root-ca" name="root_ca" type="file" accept=".pem,.crt,.cer" required></label>
+            <p class="note">The root CA must match the server chain and be trusted by the thermostats. If this is a new CA, create an SD-card image below and import it to each thermostat. Never upload the root CA's private key.</p>
+            <button id="upload-submit" type="submit">Upload and activate</button>
+          </form>
+        </div>
+      </details>
+    </section>
+    <section id="sd-card" class="panel workflow" aria-labelledby="sd-card-heading" hidden>
+      <p class="eyebrow">THERMOSTAT SETUP</p><h2 id="sd-card-heading">Download SD-card image</h2>
       <p>On the thermostat, open <strong>About</strong> and enter the firmware version shown beside Firmware. The image includes the matching version stub and this server's public root CA.</p>
       <figure class="firmware-example">
         <img src="static/thermostat-about-firmware.jpg" alt="Venstar thermostat About screen showing firmware version VH6.93">
@@ -40,25 +61,6 @@
       </form>
       <p class="note">Write the downloaded image to an SD card with Rufus or a similar disk-image tool. Writing an image erases the selected card. On the thermostat, choose SD Card → Import/Export and import Custom Images only. Cancel any firmware upgrade prompt.</p>
     </section>
-    <div class="choices">
-      <section class="panel" aria-labelledby="generate-heading">
-        <p class="eyebrow">NEW INSTALLATION</p><h2 id="generate-heading">Generate new credentials</h2>
-        <p>Create a unique root CA and matching server certificate. Create an SD-card image below to import the public CA on your thermostats.</p>
-        <p class="note">Credentials are saved in the add-on's persistent storage. Starting or updating the add-on never generates another CA.</p>
-        <button id="generate" type="button">Generate certificate and key</button>
-      </section>
-      <section class="panel" aria-labelledby="upload-heading">
-        <p class="eyebrow">EXISTING INSTALLATION</p><h2 id="upload-heading">Upload your working pair</h2>
-        <p>Migrating an existing server? Use its current certificate chain, matching private key, and the same public root CA already trusted by your thermostats.</p>
-        <form id="upload-form">
-          <label>Server certificate chain (PEM)<input id="certificate" type="file" accept=".pem,.crt,.cer" required></label>
-          <label>Matching private key (unencrypted PEM)<input id="private-key" type="file" accept=".key,.pem" required></label>
-          <label>Public root CA certificate (required)<input id="root-ca" type="file" accept=".pem,.crt,.cer" required></label>
-          <p class="note">The root CA must match the server chain and be trusted by the thermostats. If this is a new CA, create an SD-card image above and import it to each thermostat. Never upload the root CA's private key.</p>
-          <button id="upload-submit" type="submit">Upload and activate</button>
-        </form>
-      </section>
-    </div>
     <section class="panel monitoring" aria-labelledby="monitor-heading">
       <div class="heading"><h2 id="monitor-heading">Weather and thermostats</h2><span id="mqtt-status" class="badge">MQTT: checking</span></div>
       <p id="weather-summary">Waiting for weather.</p>

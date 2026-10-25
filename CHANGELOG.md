@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.12
+
+- Upload certificate files as multipart data so Android file providers can pass selected files without browser-side text reads.
+- Log upload file sizes and validation/activation outcomes without logging certificate or private-key contents.
+- Reorder setup as New Installation, optional Existing Installation, then SD-card image download.
+
 ## 1.2.11
 
 - Include the SD-card image builder in the Docker build context so the add-on image builds successfully.
