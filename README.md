@@ -12,7 +12,7 @@ status. If setup is required, generate a certificate and key or upload your
 existing pair there.
 
 This repository contains the add-on at its root. The standalone server and
-SD-card credential builder are maintained separately in
+command-line SD-card tools are maintained separately in
 [localstar-openport](https://github.com/kevincw01/localstar-openport).
 
 ## Install
@@ -29,7 +29,7 @@ SD-card credential builder are maintained separately in
    Enable **Start on boot** and **Watchdog**.
 5. Certificate path fields start empty. The add-on serves its setup UI while
    Skyport stays stopped. Open **Web UI** and choose **Generate certificate and key**, then
-   download the public root CA for the SD-card tool. To migrate a server, choose
+   create an SD-card image for thermostat provisioning. To migrate a server, choose
    **Upload and activate** with its existing certificate chain, matching key,
    and public root CA.
 6. Point the local DNS override for `connect.skyport.io` at your HA host, and allow
@@ -43,7 +43,7 @@ if HA's settings change or Core is unavailable.
 The ingress page offers two certificate workflows:
 
 - **Generate:** create a unique epoch-valid CA and matching server certificate,
-  then download the public root for thermostat provisioning.
+  then create a thermostat SD-card image containing the public root.
 - **Upload:** validate and retain an existing certificate/key pair, preserving
   the identity already trusted by the thermostats. Upload the matching public
   root CA as well; it must be the CA already trusted by the thermostats.
@@ -53,6 +53,9 @@ fills the certificate, key, and root CA path fields in HA Configuration before
 starting Skyport; refresh that page to see them. Existing `/ssl` file setups remain
 supported when all three paths are explicitly configured. Keys are never replaced
 automatically on restart. Generate/upload actions replace the saved identity when one exists.
+The SD-card image builder asks for the firmware version shown on the thermostat's
+About screen; it writes the four-byte version stub, gallery index, and active public
+root CA without including or applying firmware.
 The management port is accessible only through Home Assistant ingress.
 Clearing any of the three paths and restarting returns to setup mode while
 retaining stored credentials. Blank fields never select a stored identity or

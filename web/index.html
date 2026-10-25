@@ -20,8 +20,6 @@
         <dt>Valid until</dt><dd id="expires"></dd>
         <dt>Certificate SHA-256</dt><dd id="fingerprint" class="mono"></dd>
       </dl>
-      <a id="download-root" class="button secondary" href="root-ca.pem" download="root-ca.pem" hidden>Download public root CA</a>
-      <p id="root-note" class="note" hidden>Use this public CA with the SD-card builder's <code>--root-ca-pem</code> option. Private keys stay in Home Assistant.</p>
       <p id="server-error" class="error" hidden></p>
     </section>
     <p id="notice" role="status" hidden></p>
@@ -29,10 +27,19 @@
     <section id="replacement" class="replacement" role="status" hidden>
       <p>These actions replace the saved certificate identity. A newly generated CA must be imported on every thermostat before it can connect. Uploading the same working pair preserves its identity.</p>
     </section>
+    <section id="sd-card" class="panel" aria-labelledby="sd-card-heading" hidden>
+      <p class="eyebrow">THERMOSTAT SETUP</p><h2 id="sd-card-heading">Create an SD-card image</h2>
+      <p>On the thermostat, open <strong>About</strong> and enter the firmware version shown beside Firmware. The image includes the matching version stub and this server's public root CA.</p>
+      <form id="sd-card-form">
+        <label>Thermostat firmware version<input id="firmware-version" name="firmware-version" type="text" placeholder="VH6.93" autocomplete="off" autocapitalize="characters" spellcheck="false" required pattern="VH[0-9]{1,3}\.[0-9]{2}" title="Enter the version shown on About, for example VH6.93"></label>
+        <button id="create-sd-card" type="submit">Download SD-card image (.img)</button>
+      </form>
+      <p class="note">Write the downloaded image to an SD card with Rufus or a similar disk-image tool. Writing an image erases the selected card. On the thermostat, choose SD Card → Import/Export and import Custom Images only. Cancel any firmware upgrade prompt.</p>
+    </section>
     <div class="choices">
       <section class="panel" aria-labelledby="generate-heading">
         <p class="eyebrow">NEW INSTALLATION</p><h2 id="generate-heading">Generate new credentials</h2>
-        <p>Create a unique root CA and matching server certificate. Download the public CA and import it on your thermostats using an SD card.</p>
+        <p>Create a unique root CA and matching server certificate. Create an SD-card image below to import the public CA on your thermostats.</p>
         <p class="note">Credentials are saved in the add-on's persistent storage. Starting or updating the add-on never generates another CA.</p>
         <button id="generate" type="button">Generate certificate and key</button>
       </section>
@@ -43,7 +50,7 @@
           <label>Server certificate chain (PEM)<input id="certificate" type="file" accept=".pem,.crt,.cer" required></label>
           <label>Matching private key (unencrypted PEM)<input id="private-key" type="file" accept=".key,.pem" required></label>
           <label>Public root CA certificate (required)<input id="root-ca" type="file" accept=".pem,.crt,.cer" required></label>
-          <p class="note">The root CA must match the server chain and be trusted by the thermostats. If this is a new CA, import it to each thermostat with the SD-card tool. Never upload the root CA's private key.</p>
+          <p class="note">The root CA must match the server chain and be trusted by the thermostats. If this is a new CA, create an SD-card image above and import it to each thermostat. Never upload the root CA's private key.</p>
           <button id="upload-submit" type="submit">Upload and activate</button>
         </form>
       </section>

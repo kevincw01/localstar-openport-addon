@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.9
+
+- Replace the public-root download with a downloadable raw SD-card image.
+- Ask for the firmware version shown on the thermostat About screen and encode it in a four-byte firmware stub.
+- Include the active public root CA and gallery import index in a Rufus-compatible FAT32 image; no firmware package is needed.
+
 ## 1.2.8
 
 - Remove the redundant replacement checkbox; Generate and Upload actions directly activate the selected identity.

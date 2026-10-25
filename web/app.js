@@ -21,8 +21,7 @@ function render(status) {
   byId("certificate-details").hidden = !certificate.fingerprint;
   byId("fingerprint").textContent = certificate.fingerprint || "";
   byId("expires").textContent = certificate.expires ? new Date(certificate.expires).toLocaleDateString() : "";
-  byId("download-root").hidden = !certificate.root_available;
-  byId("root-note").hidden = !certificate.root_available;
+  byId("sd-card").hidden = !certificate.root_available;
   byId("server-error").hidden = !status.error;
   byId("server-error").textContent = status.error || "";
   byId("replacement").hidden = !active;
@@ -70,7 +69,7 @@ async function provision(action, fields = {}) {
     if (!response.ok) throw new Error(status.error || "Certificate setup failed.");
     render(status);
     byId("upload-form").reset();
-    message(action === "generate" ? "Certificate, key, and root CA saved; all three Configuration paths are filled. Download the public root CA and import it on your thermostats. Refresh HA's Configuration page to see the paths." : "Your certificate, key, and root CA are active; all three Configuration paths are filled. Refresh HA's Configuration page to see them.");
+    message(action === "generate" ? "Certificate, key, and root CA saved; all three Configuration paths are filled. Create an SD-card image below to import the CA on your thermostats. Refresh HA's Configuration page to see the paths." : "Your certificate, key, and root CA are active; all three Configuration paths are filled. Refresh HA's Configuration page to see them.");
   } catch (error) {
     message(error.message, true);
   } finally {
@@ -90,6 +89,42 @@ byId("upload-form").addEventListener("submit", async (event) => {
     if (cert.size > 131072 || key.size > 32768 || root.size > 131072) throw new Error("Selected files exceed the PEM upload limit.");
     await provision("upload", {certificate: await cert.text(), key: await key.text(), root_ca: await root.text()});
   } catch (error) { message(error.message, true); }
+});
+byId("sd-card-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (busy) return;
+  const form = event.currentTarget;
+  if (!form.reportValidity()) return;
+  busy = true;
+  document.querySelectorAll("button").forEach((button) => { button.disabled = true; });
+  message("Building the SD-card image…");
+  try {
+    const response = await fetch(new URL("api/sd-card-image", document.baseURI), {
+      method: "POST", headers: {"Content-Type": "application/json", "X-CSRF-Token": token},
+      body: JSON.stringify({firmware_version: byId("firmware-version").value})
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      let detail = text;
+      try { detail = JSON.parse(text).error || text; } catch (_) {}
+      throw new Error(detail || "Could not create the SD-card image.");
+    }
+    const blob = await response.blob();
+    const disposition = response.headers.get("Content-Disposition") || "";
+    const filename = disposition.match(/filename="([^"]+)"/)?.[1] || "localstar-openport.img";
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    message("SD-card image downloaded. Write it to the card with Rufus in DD image mode, then import Custom Images on the thermostat.");
+  } catch (error) {
+    message(error.message, true);
+  } finally {
+    busy = false;
+    document.querySelectorAll("button").forEach((button) => { button.disabled = false; });
+  }
 });
 refresh().catch((error) => message(error.message, true));
 setInterval(() => refresh().catch(() => {}), 5000);

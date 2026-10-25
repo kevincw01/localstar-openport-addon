@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import secrets
+import tempfile
 import time
 
 from aiohttp import web
@@ -16,6 +17,7 @@ from certificate_store import CertificateStore, validate_pair
 from telemetry import Telemetry
 from mqtt_entities import MqttEntities
 from supervisor_options import save_certificate_paths
+from sd_card_image import build_image, parse_firmware_version
 
 SUPERVISOR_IP = "172.30.32.2"
 WEB_DIRECTORY = Path(__file__).with_name("web")
@@ -267,12 +269,40 @@ def create_application(options, data_directory="/data", ssl_directory="/ssl", *,
         return web.json_response(manager.telemetry.snapshot(status["server_running"],
                                                            status["certificate"]["expires"]))
 
-    async def root_certificate(request):
+    async def sd_card_image(request):
+        if request.content_type != "application/json":
+            return web.json_response({"error": "Expected a JSON request"}, status=415)
+        try:
+            body = await request.json()
+            if not isinstance(body, dict):
+                raise ValueError("Enter the firmware version shown on the thermostat's About screen")
+            version, _ = parse_firmware_version(body.get("firmware_version"))
+        except (json.JSONDecodeError, ValueError) as exc:
+            return web.json_response({"error": str(exc)}, status=400)
+
         root = await asyncio.to_thread(manager.public_root)
         if root is None:
-            raise web.HTTPNotFound(text="No public root is available; configure a valid certificate, key, and root CA")
-        return web.Response(body=root, content_type="application/x-pem-file",
-                            headers={"Content-Disposition": 'attachment; filename="root-ca.pem"'})
+            return web.json_response({"error": "Configure a valid certificate and root CA before creating an SD-card image"}, status=409)
+
+        with tempfile.TemporaryDirectory(prefix="localstar-sd-card-") as directory:
+            path = Path(directory) / "localstar-openport.img"
+            try:
+                await asyncio.to_thread(build_image, path, version, root)
+            except (OSError, RuntimeError) as exc:
+                print(f"Could not create SD-card image: {exc}", flush=True)
+                return web.json_response({"error": "Could not create the SD-card image. Check the add-on log."}, status=500)
+            response = web.StreamResponse(status=200, headers={
+                "Content-Type": "application/octet-stream",
+                "Content-Length": str(path.stat().st_size),
+                "Content-Disposition": f'attachment; filename="localstar-openport-{version}.img"',
+                "Cache-Control": "no-store",
+            })
+            await response.prepare(request)
+            with path.open("rb") as image:
+                while chunk := image.read(1024 * 1024):
+                    await response.write(chunk)
+            await response.write_eof()
+            return response
 
     async def provision(request):
         if request.content_type != "application/json":
@@ -313,7 +343,7 @@ def create_application(options, data_directory="/data", ssl_directory="/ssl", *,
     app.router.add_get("/", index)
     app.router.add_get("/api/status", status)
     app.router.add_get("/api/telemetry", telemetry)
-    app.router.add_get("/root-ca.pem", root_certificate)
+    app.router.add_post("/api/sd-card-image", sd_card_image)
     app.router.add_post("/api/{action:generate|upload}", provision)
     app.router.add_static("/static", WEB_DIRECTORY)
     app.on_startup.append(startup)

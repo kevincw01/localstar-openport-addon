@@ -35,23 +35,18 @@ to generate or upload them.
 
 1. Choose **Generate certificate and key**. The add-on generates independent random RSA
    CA and server keys, a root CA, and a server certificate covering Skyport names.
-2. Download **public root CA**. Both root and leaf are valid from 1970-01-01 through
-   2037-12-12 so a thermostat with an unset clock can validate them.
-3. Download the current
-   [standalone SD-card tools](https://github.com/kevincw01/localstar-openport).
-   Use the downloaded CA rather than generating a different one:
-
-   ```sh
-   ./new-venstar-card.sh --update-bin firmware/update.bin --target card \
-     --root-ca-pem root-ca.pem --dry-run
-   ./new-venstar-card.sh --update-bin firmware/update.bin --target card \
-     --root-ca-pem root-ca.pem
-   ```
-
-   On Windows, use `New-VenstarCard.ps1 -RootCaPem .\root-ca.pem` with `-DriveLetter`
-   and `-UpdateBin`. The SD-card builder reads no private keys in this mode.
-4. Import Images on the thermostat using that card, then restart it and verify
-   TLS login in the add-on log. The import clears custom wallpapers.
+   Both root and leaf are valid from 1970-01-01 through 2037-12-12 so a thermostat
+   with an unset clock can validate them.
+2. On the thermostat, open **About** and note the Firmware value (for example
+   `VH6.93`). Enter that value in the add-on Web UI and download the SD-card image.
+   It contains a FAT32 partition with the four-byte version stub, gallery import
+   index, and active public root CA. It does not contain firmware.
+3. Use Rufus or another disk-image writer to write the `.img` file to an SD card.
+   In Rufus, choose **DD Image mode** if prompted; writing erases the selected card.
+4. On the thermostat, open **SD Card → Import/Export**, choose **Custom Images**
+   only, and complete the import. Cancel any firmware upgrade prompt. The import
+   clears custom wallpapers. Restart the thermostat and verify TLS login in the
+   add-on log.
 
 The CA's private key and the server key stay in the add-on. The web interface
 does not offer private-key downloads. Newly generated credentials still require
@@ -63,7 +58,7 @@ validation on the target thermostat; software tests cannot prove on-device impor
    matching unencrypted private key (PEM), and the matching public root CA
    certificate under **Upload your working pair**.
 2. The root CA must be the trust anchor already installed on the thermostats.
-   If you use a new root, import it to each thermostat with the SD-card tool
+   If you use a new root, create an SD-card image in the Web UI and import it
    before they can trust the server. Do not upload the CA's private key.
 3. Select **Upload and activate**. The add-on checks the key match, current
    certificate validity, Skyport hostname, and signatures of the certificate
@@ -162,7 +157,7 @@ external files instead, their paths are relative to `/ssl` and must resolve insi
 that directory. Only managed paths may be absolute. The add-on validates the matching
 key/certificate/root CA set and location options before launching the server. The root CA
 must be the public trust anchor installed on each thermostat; a new root must be imported
-to the thermostats with the SD-card tool before they can trust the server.
+to the thermostats with an SD-card image before they can trust the server.
 
 Initial location defaults are read from HA's `/api/config` using the Supervisor Core
 proxy and its automatically provided token. This requires the add-on's declared
