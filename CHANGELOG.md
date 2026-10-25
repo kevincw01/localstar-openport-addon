@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.3
+
+- Add a gold star with a blue nautical porthole as the Home Assistant app icon.
+- Use a star-circle glyph for the ingress sidebar entry.
+
 ## 1.2.2
 
 - Save the resolved location and timezone once; HA setting changes and restarts no longer refresh them.
