@@ -19,13 +19,13 @@ configuration:
     description: Verify the broker certificate using public system roots. Used only with an explicit host.
   latitude:
     name: Latitude override (optional)
-    description: Leave unset to use Home Assistant's home latitude. An override must be between -90 and 90.
+    description: Leave unset to use the saved latitude, initially imported from HA. Set a value between -90 and 90 to change it; restart to apply.
   longitude:
     name: Longitude override (optional)
-    description: Leave unset to use Home Assistant's home longitude. An override must be between -180 and 180.
+    description: Leave unset to use the saved longitude, initially imported from HA. Set a value between -180 and 180 to change it; restart to apply.
   timezone:
     name: Timezone
-    description: Select Home Assistant to inherit HA's timezone, or choose an IANA timezone override. Restart to apply location or timezone changes.
+    description: Home Assistant imports the timezone only at initial setup, then keeps it saved. Choose an explicit IANA zone to change it; restart to apply.
   certificate_file:
     name: External certificate chain (optional fallback)
     description: Path relative to /ssl, used only until credentials are generated or uploaded in Web UI.

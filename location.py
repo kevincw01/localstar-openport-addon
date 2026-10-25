@@ -1,4 +1,4 @@
-"""Resolve optional overrides against HA's home location without exposing it."""
+"""Import HA's initial location once, then keep explicitly configured settings."""
 
 import contextlib
 import json
@@ -13,7 +13,7 @@ INHERIT_TIMEZONE = (None, "", "Home Assistant")
 
 
 class LocationUnavailable(RuntimeError):
-    """Core is not ready yet and no previously resolved location is cached."""
+    """The initial location or its persistent storage is not ready yet."""
 
 
 def fetch_home_assistant_config():
@@ -29,39 +29,55 @@ def fetch_home_assistant_config():
 
 
 def resolve_options(options, data_directory="/data", *, fetch=None):
-    """Apply explicit overrides per field; persist only HA's location, never tokens."""
+    """Pin the resolved location once; explicit option edits update that snapshot."""
     validate_options(options, allow_inherit=True)
-    missing = [key for key in ("latitude", "longitude") if options.get(key) is None]
+    fields = ("latitude", "longitude", "timezone")
+    missing = [key for key in fields[:2] if options.get(key) is None]
     if options.get("timezone") in INHERIT_TIMEZONE:
         missing.append("timezone")
-    if not missing:
-        return options.copy()
     path = Path(data_directory) / "location.json"
+    saved = None
     try:
-        inherited = (fetch or fetch_home_assistant_config)()
-        validate_options(inherited)
-    except (OSError, ValueError, TypeError, RuntimeError):
-        try:
-            inherited = json.loads(path.read_text())
-            validate_options(inherited)
-        except (OSError, ValueError, TypeError) as exc:
+        saved = json.loads(path.read_text())
+        validate_options(saved)
+    except FileNotFoundError:
+        pass
+    except (OSError, ValueError, TypeError) as exc:
+        if missing:
             raise LocationUnavailable(
-                "Waiting for Home Assistant's location. Start Core, or set latitude, longitude "
-                "and an explicit timezone in Configuration.") from exc
-        print("Using the cached Home Assistant location while Core is unavailable.", flush=True)
-    else:
-        temporary = path.with_name(uuid.uuid4().hex + ".tmp")
-        try:
-            path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-            fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-            with os.fdopen(fd, "w") as stream:
-                json.dump({key: inherited[key] for key in ("latitude", "longitude", "timezone")}, stream)
-            os.replace(temporary, path)
-        except OSError:
-            print("Could not cache HA's location; the resolved settings are still usable.", flush=True)
-        finally:
-            with contextlib.suppress(OSError):
-                temporary.unlink(missing_ok=True)
+                "Stored location cannot be read. Restore location.json from backup, or set "
+                "latitude, longitude and an explicit timezone in Configuration.") from exc
+        saved = None
     result = options.copy()
-    result.update({key: inherited[key] for key in missing})
-    return validate_options(result)
+    if missing:
+        if saved is not None:
+            inherited = saved
+            print("Using saved location and timezone.", flush=True)
+        else:
+            try:
+                inherited = (fetch or fetch_home_assistant_config)()
+                validate_options(inherited)
+            except (OSError, ValueError, TypeError, RuntimeError) as exc:
+                raise LocationUnavailable(
+                    "Waiting for Home Assistant's initial location. Start Core, or set latitude, "
+                    "longitude and an explicit timezone in Configuration.") from exc
+        result.update({key: inherited[key] for key in missing})
+    validate_options(result)
+    selected = {key: result[key] for key in fields}
+    if selected == saved:
+        return result
+    temporary = path.with_name(uuid.uuid4().hex + ".tmp")
+    try:
+        path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "w") as stream:
+            json.dump(selected, stream)
+        os.replace(temporary, path)
+    except OSError as exc:
+        raise LocationUnavailable(
+            "Could not save the configured location. Check add-on data storage; "
+            "startup will retry without changing credentials.") from exc
+    finally:
+        with contextlib.suppress(OSError):
+            temporary.unlink(missing_ok=True)
+    return result

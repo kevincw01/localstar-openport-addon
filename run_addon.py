@@ -2,6 +2,7 @@
 """Run the ingress certificate manager and supervise the Skyport process."""
 
 import json
+from pathlib import Path
 import sys
 import time
 
@@ -22,7 +23,7 @@ def main(options_path="/data/options.json"):
         return 1
     while True:
         try:
-            options = resolve_options(options)
+            options = resolve_options(options, data_directory=Path(options_path).parent)
             break
         except LocationUnavailable as exc:
             print(str(exc) + " Retrying in 30 seconds.", flush=True)

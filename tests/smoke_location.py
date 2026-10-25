@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify container startup inherits HA's location, refreshes it, and caches it."""
+"""Verify initial HA location is pinned until explicitly edited by the user."""
 
 import argparse
 from datetime import datetime, timezone
@@ -96,6 +96,11 @@ def main():
             home.update(latitude=1, time_zone='Europe/London')
             (fixture / 'home.json').write_text(json.dumps(home))
             docker('restart', '--time', '10', app)
+            roundtrip('Etc/UTC')
+            assert json.loads((data / 'location.json').read_text())['latitude'] == 0
+            (data / 'options.json').write_text(json.dumps({
+                'latitude': 1, 'timezone': 'Europe/London', 'mqtt_enabled': False}))
+            docker('restart', '--time', '10', app)
             roundtrip('Europe/London')
             cached = (data / 'location.json').read_bytes()
             assert json.loads(cached)['latitude'] == 1
@@ -103,9 +108,9 @@ def main():
             docker('restart', '--time', '10', app)
             roundtrip('Europe/London')
             assert (data / 'location.json').read_bytes() == cached
-            assert 'cached Home Assistant location' in docker('logs', app)
+            assert 'Using saved location and timezone.' in docker('logs', app)
             assert {path.name: path.read_bytes() for path in credentials.iterdir()} == before
-            print('PASS: inherited HA location, timezone response, refreshed settings, private cache and Core-outage restart; credentials unchanged')
+            print('PASS: initial HA import, static settings despite HA changes, explicit edits and Core-outage restart; credentials unchanged')
         finally:
             for container in (app, proxy):
                 subprocess.run([*prefix, 'rm', '-f', container], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

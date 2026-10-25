@@ -17,8 +17,9 @@ SD-card credential builder are maintained separately in
    on versions using that name).
 2. Add `https://github.com/kevincw01/localstar-openport-addon`.
 3. Install **localstar-openport**. The container builds locally on your HA host.
-4. Start the add-on; latitude, longitude, and timezone default to Home Assistant's
-   home settings. Optional coordinates and the timezone dropdown provide overrides.
+4. Start the add-on; initial latitude, longitude, and timezone come from Home
+   Assistant, then remain saved until you explicitly change them. Optional
+   coordinates and the timezone dropdown let you edit those settings.
    Enable **Start on boot** and **Watchdog**.
 5. Open **Web UI**. For a new installation, choose **Generate and activate**, then
    download the public root CA for the SD-card tool. To migrate a server, choose
@@ -28,8 +29,9 @@ SD-card credential builder are maintained separately in
 
 One installation serves multiple thermostats. Supports **aarch64** and **amd64**.
 No HACS installation, manually created HA token, or privileged host access is required.
-The add-on uses its Supervisor-provided Core API access to read HA's location;
-the last valid location is cached privately for starts while Core is unavailable.
+The add-on uses its Supervisor-provided Core API access once to import HA's initial
+location, then stores it privately. Subsequent starts use the saved values even
+if HA's settings change or Core is unavailable.
 The ingress page offers two certificate workflows:
 
 - **Generate:** create a unique epoch-valid CA and matching server certificate,
@@ -91,7 +93,7 @@ Supervisor-only ingress gate, generation, upload, persistence, and child recover
 The MQTT smoke test starts a disposable loopback-only Mosquitto container and
 drives real TLS clients with synthetic weather through MQTT discovery/state.
 The location smoke test uses a disposable Core API proxy to check inheritance,
-timezone changes, and cached recovery without touching an HA installation.
+static settings, explicit timezone changes, and recovery without touching an HA installation.
 Refresh the published timezone choices with `python3 tools/update_timezones.py`
 after updating the development environment's IANA data.
 

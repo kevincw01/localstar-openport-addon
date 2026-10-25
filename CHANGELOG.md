@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.2
+
+- Save the resolved location and timezone once; HA setting changes and restarts no longer refresh them.
+- Apply explicit Configuration edits to the saved values while preserving other fields.
+- Reuse the previous release's valid location cache and require successful persistence before startup.
+
 ## 1.2.1
 
 - Inherit HA's home latitude, longitude, and timezone by default; retain optional per-field overrides.

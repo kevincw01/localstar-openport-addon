@@ -33,20 +33,39 @@ class TestLocation(unittest.TestCase):
                                  self.directory, fetch=lambda: inherited)
         self.assertEqual(result, {"latitude": 0, "longitude": 20, "timezone": "Etc/UTC"})
 
-    def test_explicit_configuration_does_not_need_core_or_write_cache(self):
+    def test_explicit_configuration_does_not_need_core_and_is_saved(self):
         with patch('location.fetch_home_assistant_config') as fetch:
             self.assertEqual(resolve_options(HA, self.directory), HA)
             fetch.assert_not_called()
-        self.assertFalse((self.directory / 'location.json').exists())
+        self.assertEqual(json.loads((self.directory / 'location.json').read_text()), HA)
 
-    def test_core_outage_uses_last_valid_cache_and_recovers_on_next_start(self):
+    def test_saved_location_is_static_across_core_outage_and_ha_setting_changes(self):
         resolve_options({}, self.directory, fetch=lambda: HA)
         with patch('location.fetch_home_assistant_config', side_effect=OSError('unavailable')), \
                 contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(resolve_options({}, self.directory), HA)
         changed = HA | {"latitude": 1, "timezone": "Europe/London"}
-        self.assertEqual(resolve_options({}, self.directory, fetch=lambda: changed), changed)
+        with patch('location.fetch_home_assistant_config', return_value=changed) as fetch:
+            self.assertEqual(resolve_options({}, self.directory), HA)
+            fetch.assert_not_called()
+        self.assertEqual(json.loads((self.directory/'location.json').read_text()), HA)
+
+    def test_explicit_edits_update_only_selected_fields_and_remain_saved(self):
+        resolve_options({}, self.directory, fetch=lambda: HA)
+        changed = HA | {"latitude": 1, "timezone": "Europe/London"}
+        with patch('location.fetch_home_assistant_config') as fetch:
+            self.assertEqual(resolve_options({'latitude': 1, 'timezone': 'Europe/London'}, self.directory), changed)
+            self.assertEqual(resolve_options({}, self.directory), changed)
+            fetch.assert_not_called()
         self.assertEqual(json.loads((self.directory/'location.json').read_text()), changed)
+
+    def test_corrupt_saved_location_requires_explicit_repair_and_never_imports_another_location(self):
+        (self.directory / 'location.json').write_text('invalid')
+        with patch('location.fetch_home_assistant_config') as fetch:
+            with self.assertRaises(LocationUnavailable):
+                resolve_options({}, self.directory)
+            fetch.assert_not_called()
+            self.assertEqual(resolve_options(HA, self.directory), HA)
 
     def test_missing_or_invalid_core_location_never_falls_back_to_zero(self):
         for fetch in (lambda: {}, lambda: HA | {"latitude": True},
@@ -62,9 +81,10 @@ class TestLocation(unittest.TestCase):
                     resolve_options(options, self.directory)
             fetch.assert_not_called()
 
-    def test_unwritable_cache_still_allows_resolved_location(self):
+    def test_unsaved_location_does_not_start_with_settings_that_could_change_next_restart(self):
         with patch('location.os.replace', side_effect=OSError('disk full')), patch('builtins.print'):
-            self.assertEqual(resolve_options({}, self.directory, fetch=lambda: HA), HA)
+            with self.assertRaises(LocationUnavailable):
+                resolve_options({}, self.directory, fetch=lambda: HA)
         self.assertFalse(list(self.directory.glob('*.tmp')))
 
     def test_core_proxy_uses_supervisor_token_without_storing_it(self):

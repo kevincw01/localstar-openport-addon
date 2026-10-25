@@ -13,8 +13,9 @@ The existing Venstar integration continues to provide HVAC controls and entities
 2. Add `https://github.com/kevincw01/localstar-openport-addon`.
 3. Find **localstar-openport** and select **Install**. The image is built on your
    HA machine, so the first installation can take several minutes and needs internet.
-4. Start the add-on. It inherits HA's home latitude, longitude, and timezone;
-   use the optional coordinate overrides or timezone dropdown if needed.
+4. Start the add-on. It imports HA's home latitude, longitude, and timezone once,
+   then saves them as static settings. Use optional coordinates or the timezone
+   dropdown to change them explicitly.
 5. Open **Web UI** and generate new credentials or upload your existing pair.
 6. Enable **Start on boot** and **Watchdog** on the add-on's Info tab.
 
@@ -108,16 +109,19 @@ part of the add-on's private `/data` directory.
 
 ## Configuration
 
-Leave latitude/longitude unset to inherit Home Assistant's configured home
-location. The timezone dropdown defaults to **Home Assistant**, or you can select
-an explicit IANA zone. An override is applied independently to each field, so a
-coordinate of zero is a valid explicit value. Example using HA's location:
+On initial setup, leave latitude/longitude unset and keep **Home Assistant** in
+the timezone dropdown to import HA's configured home settings. The resolved
+values are saved once and remain static across restarts, updates, and later
+changes to HA's home location or timezone. Example for the initial import:
 
 ```yaml
 timezone: Home Assistant
 ```
 
-To override the location, set the optional fields. Example only, using London:
+To change the saved location, set the optional fields or choose an explicit IANA
+timezone, then save and restart. Each field is applied independently: unset
+coordinates and **Home Assistant** reuse their saved values after initial setup,
+and a coordinate of zero is valid. Example only, using London:
 
 ```yaml
 latitude: 51.5074
@@ -134,19 +138,26 @@ They are relative to `/ssl` and must resolve inside that directory.
 Absolute paths and escaping symlinks are rejected. The add-on validates the matching
 key/certificate pair and location options before launching the server.
 
-Location defaults are read from HA's `/api/config` using the Supervisor Core
+Initial location defaults are read from HA's `/api/config` using the Supervisor Core
 proxy and its automatically provided token. This requires the add-on's declared
 `homeassistant_api` permission; you do not need to create or paste a token.
-Only latitude, longitude, and timezone are cached in the private
-`/data/location.json` file. If Core is down, the last valid cache is used.
-On first installation without a cache, startup waits and retries every 30 seconds
+Only the resolved latitude, longitude, and timezone are stored in the private
+`/data/location.json` file. Existing valid settings from the previous release's
+cache become the saved starting point. Once saved, startup does not contact HA
+for these values, so Core availability cannot change them.
+On first installation without saved settings, startup waits and retries every 30 seconds
 until Core is available. Specifying all three fields explicitly avoids this
-dependency. Credentials are not regenerated while waiting.
+dependency. All explicitly configured values are saved too. Startup also waits
+if storage cannot persist the selected values, to prevent a different location
+being imported on the next start. Credentials are not regenerated while waiting.
 
-HA location/timezone changes are picked up when this add-on restarts. After
-upgrading from a manually configured release, clear each coordinate override
-you want to inherit and select **Home Assistant** in the timezone dropdown;
-existing explicit settings are preserved. Refresh the store to see the update.
+To apply a later HA location change, enter the desired values in this add-on's
+Configuration and restart; HA edits alone do not update the saved snapshot.
+Explicit settings from earlier releases remain honored. A selected IANA zone
+still follows its daylight-saving rules; the zone identifier is static, not its
+UTC offset. Saved settings are included in add-on backups. If the file is damaged,
+restore it from backup or set all three fields explicitly to repair it; the
+add-on will not silently import a different location.
 
 Time responses contain local wall-clock time encoded as epoch milliseconds, as the
 thermostat expects. Set `sync_time: false` to disable these responses. Enable
@@ -269,7 +280,7 @@ server. DNS changes do not move an already established session.
 ## Troubleshooting
 
 - **Waiting for HA location:** start Core or specify all three location fields
-  explicitly. Once resolved, a private cache supports starts while Core is down.
+  explicitly on initial setup. Saved values subsequently work independently of Core.
 - **Configuration error:** check coordinate override ranges and the timezone
   selection, then open Web UI to generate or upload credentials. For the legacy file-based
   setup, check certificate/key paths below `/ssl` and that the pair matches.
