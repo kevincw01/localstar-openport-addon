@@ -41,6 +41,18 @@ About screen; it uses this to ensure the thermostat validates the sd card. If yo
 
 Enter the value shown beside **Firmware**, including the `VH` prefix.
 
+After downloading the SD-card image from the add-on Web UI, write the `.img` file
+to an SD card with Rufus or another disk-image writer. Choose **DD Image mode**
+if Rufus prompts you; writing the image erases the selected card. Then:
+
+1. Eject the card, insert it into the thermostat, and open **SD Card →
+   Import/Export**.
+2. Choose **Custom Images** only and complete the import. If the thermostat
+   prompts you to update firmware, cancel the prompt. The image imports the
+   public root CA; it does not install firmware. Importing images clears custom
+   wallpapers.
+3. Remove the card and restart the thermostat so it reloads the root CA.
+
 ## Home Assistant entities
 
 With HA's **MQTT integration** configured and an MQTT broker available, the add-on
