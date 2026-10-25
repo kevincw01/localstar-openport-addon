@@ -51,6 +51,9 @@ class TestAddon(unittest.TestCase):
         self.assertEqual(config['startup'], 'services')
         self.assertEqual(config['boot'], 'auto')
         self.assertEqual(config['map'], [{'type': 'ssl', 'read_only': True}])
+        self.assertTrue(config['ingress'])
+        self.assertEqual(config['ingress_port'], 8099)
+        self.assertNotIn('8099/tcp', config['ports'])
         for key in ('latitude', 'longitude', 'timezone'):
             self.assertIsNone(config['options'][key])
         for key in ('hassio_api', 'homeassistant_api', 'docker_api', 'full_access', 'host_network'):
@@ -102,21 +105,18 @@ class TestAddon(unittest.TestCase):
         with self.assertRaises(ssl.SSLError):
             run_addon.command_from_options(self.options() | {'private_key_file': 'other/server.key'}, self.ssl_dir)
 
-    def test_entrypoint_execs_server_and_reports_bad_options(self):
+    def test_entrypoint_starts_ingress_manager_and_reports_bad_options(self):
         path = self.root / 'options.json'
         path.write_text(json.dumps(self.options()))
-        original = run_addon.command_from_options
-        with patch.object(run_addon, 'command_from_options',
-                          side_effect=lambda options: original(options, self.ssl_dir)), \
-                patch.object(run_addon.os, 'execv') as execute, contextlib.redirect_stdout(io.StringIO()):
+        with patch.object(run_addon, 'create_application') as create, \
+                patch.object(run_addon.web, 'run_app') as run:
             self.assertEqual(run_addon.main(path), 0)
-            argv = execute.call_args.args[1]
-            self.assertEqual(execute.call_args.args[0], sys.executable)
-            self.assertIn('--cert', argv)
+            create.assert_called_once_with(self.options())
+            self.assertEqual(run.call_args.kwargs['port'], 8099)
         path.write_text('{invalid json')
-        with contextlib.redirect_stderr(io.StringIO()) as stderr, patch.object(run_addon.os, 'execv') as execute:
+        with contextlib.redirect_stderr(io.StringIO()) as stderr, patch.object(run_addon.web, 'run_app') as run:
             self.assertEqual(run_addon.main(path), 1)
-            execute.assert_not_called()
+            run.assert_not_called()
             self.assertIn('configuration error', stderr.getvalue())
 
     def test_either_occupied_port_fails_whole_startup_and_releases_other_port(self):

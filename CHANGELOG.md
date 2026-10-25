@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0
+
+- Add ingress-only certificate management with unique CA/server generation and existing-pair uploads.
+- Download public root certificates for SD provisioning; private keys stay in persistent add-on data.
+- Validate uploaded identities and require explicit replacement; roll back if a new listener cannot start.
+- Preserve the working identity across restarts/upgrades and recover a stopped Skyport child.
+- Retain read-only `/ssl` file-based certificate support for existing installations.
+
 ## 1.0.0
 
 - Package the shared Skyport server as a Supervisor add-on/app.

@@ -8,6 +8,7 @@ No thermostat or production configuration is touched. Container is always remove
 
 import argparse
 import json
+import os
 from pathlib import Path
 import socket
 import ssl
@@ -46,6 +47,7 @@ def smoke(image, sudo=False, skip_weather=False):
         context = ssl.create_default_context(cafile=str(credentials / 'root-ca.pem'))
         try:
             docker('run', '--detach', '--name', name,
+                   '--user', f'{os.getuid()}:{os.getgid()}',
                    '--mount', f'type=bind,source={data},target=/data',
                    '--mount', f'type=bind,source={ssl_dir},target=/ssl,readonly',
                    '-p', '127.0.0.1::9001', '-p', '127.0.0.1::41414', image)

@@ -3,3 +3,8 @@
 !requirements.txt
 !server.py
 !run_addon.py
+!addon_config.py
+!management.py
+!certificate_store.py
+!web/
+!web/**

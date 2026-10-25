@@ -9,11 +9,11 @@ configuration:
     name: Timezone
     description: IANA timezone for the thermostat's local clock, for example Europe/London.
   certificate_file:
-    name: Server certificate chain
-    description: Path relative to /ssl, containing the server certificate followed by its matching root.
+    name: External certificate chain (optional fallback)
+    description: Path relative to /ssl, used only until credentials are generated or uploaded in Web UI.
   private_key_file:
-    name: Server private key
-    description: Path relative to /ssl. Use the key matching the imported CA's server certificate.
+    name: External private key (optional fallback)
+    description: Path relative to /ssl, used only until a managed certificate pair is activated in Web UI.
   sync_time:
     name: Synchronize thermostat time
     description: Respond to time requests using the configured timezone.

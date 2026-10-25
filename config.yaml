@@ -1,5 +1,5 @@
 name: localstar-openport
-version: "1.0.0"
+version: "1.1.0"
 slug: localstar_openport
 description: Local Skyport weather and time server for Venstar ColorTouch thermostats
 url: https://github.com/kevincw01/localstar-openport-addon
@@ -9,6 +9,11 @@ arch:
 startup: services
 boot: auto
 init: true
+ingress: true
+ingress_port: 8099
+panel_icon: mdi:certificate
+panel_title: localstar-openport
+panel_admin: true
 ports:
   9001/tcp: 9001
   41414/tcp: 41414

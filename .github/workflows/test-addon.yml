@@ -35,3 +35,5 @@ jobs:
         run: docker build -t localstar-openport:test .
       - name: Container TLS, heartbeat and lifecycle tests
         run: python tests/smoke_addon.py --skip-weather
+      - name: Certificate generation and upload through ingress
+        run: python tests/smoke_certificates.py

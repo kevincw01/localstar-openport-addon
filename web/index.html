@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{CSRF_TOKEN}}">
+  <base href="{{BASE_PATH}}">
+  <title>localstar-openport · Certificates</title>
+  <link rel="stylesheet" href="static/style.css">
+  <script src="static/app.js" defer></script>
+</head>
+<body>
+  <main>
+    <header><p class="eyebrow">LOCAL SKYPORT SERVER</p><h1>localstar-openport</h1>
+      <p class="intro">Set up the certificate your thermostats will trust.</p></header>
+    <section class="panel status" aria-labelledby="status-heading">
+      <div class="heading"><h2 id="status-heading">Active certificate</h2><span id="server-status" class="badge">Loading…</span></div>
+      <p id="identity-description">Checking the current identity.</p>
+      <dl id="certificate-details" hidden>
+        <dt>Valid until</dt><dd id="expires"></dd>
+        <dt>Certificate SHA-256</dt><dd id="fingerprint" class="mono"></dd>
+      </dl>
+      <a id="download-root" class="button secondary" href="root-ca.pem" download="root-ca.pem" hidden>Download public root CA</a>
+      <p id="root-note" class="note" hidden>Use this public CA with the SD-card builder's <code>--root-ca-pem</code> option. Private keys stay in Home Assistant.</p>
+      <p id="server-error" class="error" hidden></p>
+    </section>
+    <p id="notice" role="status" hidden></p>
+    <section id="replacement" class="replacement" hidden>
+      <label><input id="confirm-replace" type="checkbox"> I intend to replace the active certificate pair.</label>
+      <p>A newly generated CA must be imported on every thermostat before it can connect. Uploading the same working pair preserves its identity.</p>
+    </section>
+    <div class="choices">
+      <section class="panel" aria-labelledby="generate-heading">
+        <p class="eyebrow">NEW INSTALLATION</p><h2 id="generate-heading">Generate new credentials</h2>
+        <p>Create a unique root CA and matching server certificate. Download the public CA, then import it on your thermostats using an SD card.</p>
+        <p class="note">Credentials are saved in the add-on's persistent storage. Starting or updating the add-on never generates another CA.</p>
+        <button id="generate" type="button">Generate and activate</button>
+      </section>
+      <section class="panel" aria-labelledby="upload-heading">
+        <p class="eyebrow">EXISTING INSTALLATION</p><h2 id="upload-heading">Upload your working pair</h2>
+        <p>Migrating an existing server? Use its current certificate chain and private key so the thermostats keep trusting it.</p>
+        <form id="upload-form">
+          <label>Server certificate chain (PEM)<input id="certificate" type="file" accept=".pem,.crt,.cer" required></label>
+          <label>Matching private key (unencrypted PEM)<input id="private-key" type="file" accept=".key,.pem" required></label>
+          <label>Public root CA (optional)<input id="root-ca" type="file" accept=".pem,.crt,.cer"></label>
+          <p class="note">Leave the public root blank if the chain already includes it. Never upload the root CA's private key.</p>
+          <button type="submit">Upload and activate</button>
+        </form>
+      </section>
+    </div>
+    <footer>Activating a certificate pair restarts the Skyport listeners. Thermostats reconnect automatically. Back up this add-on to preserve uploaded and generated credentials.</footer>
+  </main>
+</body>
+</html>

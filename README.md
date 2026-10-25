@@ -17,17 +17,28 @@ SD-card credential builder are maintained separately in
    on versions using that name).
 2. Add `https://github.com/kevincw01/localstar-openport-addon`.
 3. Install **localstar-openport**. The container builds locally on your HA host.
-4. Copy your working `server-chain.pem` and `server.key` to the shared HA SSL
-   directory under `localstar-openport/`.
-5. Set your latitude, longitude, and IANA timezone in Configuration, then start
+4. Set your latitude, longitude, and IANA timezone in Configuration, then start
    the add-on. Enable **Start on boot** and **Watchdog**.
+5. Open **Web UI**. For a new installation, choose **Generate and activate**, then
+   download the public root CA for the SD-card tool. To migrate a server, choose
+   **Upload and activate** with its existing certificate chain and matching key.
 6. Point the local DNS override for `connect.skyport.io` at your HA host, and allow
    thermostat access to TCP ports **9001** and **41414** there. Keep host port 41414.
 
 One installation serves multiple thermostats. Supports **aarch64** and **amd64**.
 No HACS installation, HA API token, or privileged host access is required.
-Certificates are mounted read-only. The add-on never generates or replaces keys;
-reuse the pair matching the CA already imported on the thermostats.
+The ingress page offers two certificate workflows:
+
+- **Generate:** create a unique epoch-valid CA and matching server certificate,
+  then download only the public root for thermostat provisioning.
+- **Upload:** validate and retain an existing certificate/key pair, preserving
+  the identity already trusted by the thermostats. A public root is optional if
+  the uploaded chain does not contain it.
+
+Both are stored privately in persistent add-on data. Existing `/ssl` file setups
+remain supported as a read-only fallback. Keys are never replaced automatically
+on restart, and replacing an active identity requires explicit confirmation.
+The management port is accessible only through Home Assistant ingress.
 
 See [DOCS.md](DOCS.md) for certificate provisioning, options, backups, migration,
 rollback, and troubleshooting. If migrating an installation from the old combined
@@ -42,6 +53,7 @@ python3 -m pip install -r requirements-dev.txt
 python3 -m unittest discover -s tests -v
 docker build -t localstar-openport:test .
 python3 tests/smoke_addon.py
+python3 tests/smoke_certificates.py
 ```
 
 The unit/TLS tests use disposable keys, synthetic weather, and local sockets.
@@ -49,6 +61,8 @@ The Docker smoke test uses temporary credentials, loopback-only host ports,
 and live Open-Meteo data; `--skip-weather` skips provider access in CI.
 Use `--sudo` if your Docker daemon requires it. CI builds and tests on native
 ARM64 and amd64 runners.
+The provisioning smoke test uses an isolated Docker network to verify the
+Supervisor-only ingress gate, generation, upload, persistence, and child recovery.
 
 The server implementation is maintained here for add-on releases. The standalone
 project has its own copy; protocol fixes should be carried to both repositories.
