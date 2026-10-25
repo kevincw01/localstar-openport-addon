@@ -37,7 +37,7 @@ starting Skyport. Generate/upload actions replace an existing saved identity if 
 The SD-card image builder asks for the firmware version shown on the thermostat's
 About screen; it uses this to ensure the thermostat validates the sd card. If you dont use the correct version number, the thermostat may not allow you to import the new root CA.  The about screen is found by clicking the down arrow at the top of the home screen followed by the gear icon.
 
-![Thermostat About screen showing the firmware version VH6.93](web/thermostat-about-firmware.jpg)
+![Thermostat About screen showing the firmware version VH6.93](https://raw.githubusercontent.com/kevincw01/localstar-openport-addon/main/web/thermostat-about-firmware.jpg)
 
 Enter the value shown beside **Firmware**, including the `VH` prefix.
 
