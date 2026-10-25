@@ -25,6 +25,21 @@ function render(status) {
   byId("server-error").hidden = !status.error;
   byId("server-error").textContent = status.error || "";
   byId("replacement").hidden = !active;
+  byId("mqtt-status").textContent = `MQTT: ${status.mqtt || "waiting"}`;
+}
+
+function renderTelemetry(state) {
+  byId("weather-summary").textContent = state.weather_fresh
+    ? `${state.temperature} °F · ${state.condition} · Humidity ${state.humidity}% · Wind ${state.wind_speed} mph ${state.wind_direction}`
+    : "Weather is unavailable or older than 30 minutes. Waiting for a fresh Open-Meteo update.";
+  byId("thermostat-summary").textContent = `${state.connected_thermostats} connected · ${state.detected_thermostats} detected`;
+  const items = Object.entries(state.thermostats).map(([id, device]) => {
+    const item = document.createElement("li");
+    const lastSeen = device.last_seen ? new Date(device.last_seen).toLocaleString() : "unknown";
+    item.textContent = `${device.address} · ${device.firmware} · ${device.connected ? "Connected" : "Disconnected"} · Last seen ${lastSeen}`;
+    return item;
+  });
+  byId("thermostat-list").replaceChildren(...items);
 }
 
 async function refresh() {
@@ -32,6 +47,8 @@ async function refresh() {
   const response = await fetch(new URL("api/status", document.baseURI), {cache: "no-store"});
   if (!response.ok) throw new Error("Unable to load status. Reopen this page through Home Assistant.");
   render(await response.json());
+  const telemetry = await fetch(new URL("api/telemetry", document.baseURI), {cache: "no-store"});
+  if (telemetry.ok) renderTelemetry(await telemetry.json());
 }
 
 async function provision(action, fields = {}) {

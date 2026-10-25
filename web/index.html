@@ -48,6 +48,13 @@
         </form>
       </section>
     </div>
+    <section class="panel monitoring" aria-labelledby="monitor-heading">
+      <div class="heading"><h2 id="monitor-heading">Weather and thermostats</h2><span id="mqtt-status" class="badge">MQTT: checking</span></div>
+      <p id="weather-summary">Waiting for weather.</p>
+      <p id="thermostat-summary">Checking detected thermostats.</p>
+      <ul id="thermostat-list"></ul>
+      <p class="note">Connection status describes the local Skyport session. A weather response confirms delivery, but cannot confirm that the thermostat rendered it on screen.</p>
+    </section>
     <footer>Activating a certificate pair restarts the Skyport listeners. Thermostats reconnect automatically. Back up this add-on to preserve uploaded and generated credentials.</footer>
   </main>
 </body>

@@ -175,10 +175,15 @@ class TestIngress(unittest.IsolatedAsyncioTestCase):
         try:
             self.assertEqual((await denied.get('/')).status, 403)
             self.assertEqual((await denied.get('/api/status')).status, 403)
+            self.assertEqual((await denied.get('/api/telemetry')).status, 403)
         finally:
             await denied.close()
 
     async def test_ingress_prefix_and_static_assets(self):
+        response = await self.client.get('/api/telemetry')
+        self.assertEqual(response.status, 200)
+        self.assertEqual((await response.json())['detected_thermostats'], 0)
+        self.assertNotIn('PRIVATE KEY', await response.text())
         response = await self.client.get('/', headers={'X-Ingress-Path': '/api/hassio_ingress/example'})
         self.assertIn('<base href="/api/hassio_ingress/example/">', await response.text())
         response = await self.client.get('/static/app.js')

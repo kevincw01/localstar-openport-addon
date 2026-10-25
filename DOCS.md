@@ -131,6 +131,85 @@ thermostat expects. Set `sync_time: false` to disable these responses. Enable
 and restart the add-on for them to take effect. Check the **Log** tab for startup,
 TLS login, weather requests, and separate entries for every ping and echo.
 
+## Home Assistant weather and diagnostic entities
+
+The add-on publishes real HA sensor and binary-sensor entities using
+[MQTT discovery](https://www.home-assistant.io/integrations/mqtt/#mqtt-discovery).
+Configure the **MQTT integration** in **Settings > Devices & services**, using
+the same broker the add-on uses. Discovery must be enabled (the HA default).
+With the Supervisor Mosquitto broker installed, no broker credentials need to
+be entered here: the add-on reads its registered service connection settings.
+No HA long-lived token or custom integration is required.
+
+The defaults are:
+
+```yaml
+mqtt_enabled: true
+mqtt_host: ""
+mqtt_port: 1883
+mqtt_username: ""
+mqtt_password: ""
+mqtt_tls: false
+```
+
+Leave `mqtt_host` empty for Supervisor service discovery; the service's port,
+username, password and TLS setting are then used. For an external broker, set
+the host and its connection options explicitly. TLS verifies the broker against
+system public roots; self-signed broker certificates are not supported in this
+release. Save options and restart the add-on. Passwords and Supervisor tokens
+are never included in entity state or logs. Protect add-on backups, which can
+contain manually configured MQTT passwords as well as certificate keys.
+
+If MQTT is missing or disconnected, the server and Web UI keep working and the
+publisher retries every 30 seconds. Set `mqtt_enabled: false` to disable it.
+The ingress page shows whether MQTT is connected, waiting, or disabled.
+
+### Entities created
+
+| Device | Entities |
+| --- | --- |
+| localstar-openport | Outdoor temperature, outdoor humidity, wind speed, compass wind direction, weather condition, today's high, today's low, today's precipitation probability |
+| localstar-openport diagnostics | Skyport server running, detected thermostat count, connected thermostat count, weather last updated, cache age, fetch problem, server certificate expiry |
+| Each detected thermostat | Skyport connection, last seen, last successful ping echo, last weather response |
+
+Weather comes from the exact Open-Meteo cache used for the thermostat responses;
+entities make no additional provider requests. Native temperatures are °F and
+wind speed is mph; HA can convert supported units to your preferred units.
+Humidity and precipitation probability are percentages. The precipitation value
+is the provider's daily maximum probability, not measured rainfall.
+The condition is descriptive text, not a full HA `weather` forecast entity.
+
+Weather sensors become unavailable before the first fetch or when the cache is
+30 minutes old. A failed fetch immediately turns the diagnostic problem sensor
+on; an unexpired last good cache can still be shown. Existing thermostat protocol
+behavior continues to serve the last cached payload. Cache age and last-update
+entities show its age; the next successful update clears the problem.
+
+Thermostats are detected only after a Skyport login, not by scanning your LAN.
+Their login identifier gives a stable device ID even if the address changes.
+Rename the generic devices in HA to identify rooms. Address and firmware appear
+on the Skyport connection entity; the detected count also has a `thermostats`
+attribute with the known clients. There is no configured room-name list.
+Detected clients and the instance ID persist in private add-on data; last-seen
+timestamps are checkpointed periodically and on clean shutdown. After restart,
+previously detected clients remain listed but disconnected until they log in.
+Overlapping sessions for the same client count as one connected thermostat.
+
+A live Skyport session becomes disconnected on socket closure or after 180
+seconds without traffic. Last seen tracks any valid post-login message, last
+ping tracks a successfully sent echo, and last weather response tracks a
+successfully sent weather payload. None confirms screen rendering or HVAC
+operation. Keep the existing Venstar integration for indoor measurements and
+thermostat controls; it is not replaced by these diagnostics.
+
+States are published every 30 seconds, with retained discovery configurations,
+broker Last Will availability, and 90-second state expiry. MQTT reconnections
+and HA's standard `homeassistant/status` birth message reannounce discovery.
+States themselves are not retained, avoiding old online states on restart.
+Disabling MQTT leaves already discovered entities unavailable; remove those
+entities/devices and their retained discovery topics if permanently retiring an
+installation. Custom HA discovery/birth topic prefixes are not supported.
+
 ## Networking and migration
 
 The default published ports are TCP **9001** (entry) and **41414** (session). Keep

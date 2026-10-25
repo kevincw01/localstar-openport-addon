@@ -37,3 +37,5 @@ jobs:
         run: python tests/smoke_addon.py --skip-weather
       - name: Certificate generation and upload through ingress
         run: python tests/smoke_certificates.py
+      - name: MQTT discovery and thermostat telemetry
+        run: python tests/smoke_mqtt.py

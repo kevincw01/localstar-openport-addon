@@ -40,6 +40,26 @@ remain supported as a read-only fallback. Keys are never replaced automatically
 on restart, and replacing an active identity requires explicit confirmation.
 The management port is accessible only through Home Assistant ingress.
 
+## Home Assistant entities
+
+With HA's **MQTT integration** configured and an MQTT broker available, the add-on
+automatically discovers weather sensors and Skyport diagnostics. A Supervisor
+broker such as Mosquitto is detected automatically; an external broker can be
+configured with the optional `mqtt_*` settings. MQTT is optional for Skyport.
+
+- Weather: outdoor temperature, humidity, wind speed/direction, condition,
+  today's high/low, and precipitation probability, all from the existing cache.
+- Server: running status, detected/connected thermostat counts, weather last
+  update/cache age/fetch problem, and server certificate expiry.
+- Each detected thermostat: Skyport connection, last seen, last successful ping
+  echo, and last weather response; its address and firmware appear as attributes.
+
+Thermostats are discovered when they log in to this server. HA can rename the
+resulting devices to match your rooms. This reports the Skyport connection;
+the existing Venstar integration still supplies thermostat controls and indoor
+measurements. Weather values do not prove that a thermostat rendered its screen.
+The Web UI also displays weather and detected clients without MQTT.
+
 See [DOCS.md](DOCS.md) for certificate provisioning, options, backups, migration,
 rollback, and troubleshooting. If migrating an installation from the old combined
 repository, add this repository separately and configure its add-on before
@@ -54,6 +74,7 @@ python3 -m unittest discover -s tests -v
 docker build -t localstar-openport:test .
 python3 tests/smoke_addon.py
 python3 tests/smoke_certificates.py
+python3 tests/smoke_mqtt.py
 ```
 
 The unit/TLS tests use disposable keys, synthetic weather, and local sockets.
@@ -63,6 +84,8 @@ Use `--sudo` if your Docker daemon requires it. CI builds and tests on native
 ARM64 and amd64 runners.
 The provisioning smoke test uses an isolated Docker network to verify the
 Supervisor-only ingress gate, generation, upload, persistence, and child recovery.
+The MQTT smoke test starts a disposable loopback-only Mosquitto container and
+drives real TLS clients with synthetic weather through MQTT discovery/state.
 
 The server implementation is maintained here for add-on releases. The standalone
 project has its own copy; protocol fixes should be carried to both repositories.

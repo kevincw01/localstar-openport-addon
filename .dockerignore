@@ -6,5 +6,7 @@
 !addon_config.py
 !management.py
 !certificate_store.py
+!telemetry.py
+!mqtt_entities.py
 !web/
 !web/**

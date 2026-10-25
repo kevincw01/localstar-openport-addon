@@ -1,3 +1,4 @@
 cryptography>=41
 tzdata
 aiohttp>=3.10,<4
+aiomqtt>=2.3,<3

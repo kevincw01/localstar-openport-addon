@@ -1,4 +1,22 @@
 configuration:
+  mqtt_enabled:
+    name: Publish Home Assistant sensors
+    description: Discover weather and Skyport diagnostics through MQTT. The server works without MQTT.
+  mqtt_host:
+    name: MQTT broker host (optional)
+    description: Leave blank to use the Supervisor-provided MQTT service automatically.
+  mqtt_port:
+    name: MQTT port
+    description: Used with an explicit broker host. Supervisor service settings include their own port.
+  mqtt_username:
+    name: MQTT username
+    description: Used only with an explicit broker host.
+  mqtt_password:
+    name: MQTT password
+    description: Used only with an explicit broker host. Never published to entities or logs.
+  mqtt_tls:
+    name: MQTT TLS
+    description: Verify the broker certificate using public system roots. Used only with an explicit host.
   latitude:
     name: Latitude
     description: Your weather location's latitude, from -90 to 90.

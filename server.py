@@ -20,6 +20,7 @@ import threading
 import time
 import urllib.request
 import warnings
+import uuid
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
@@ -81,6 +82,14 @@ def log(msg):
         print(f"{datetime.now():%Y-%m-%d %H:%M:%S} {msg}", flush=True)
 
 
+def emit_event(kind, **fields):
+    """Private child-to-manager events; opt-in so standalone output stays compatible."""
+    if os.environ.get("LOCALSTAR_TELEMETRY") == "1":
+        with log_lock:
+            print("LOCALSTAR_EVENT " + json.dumps({"event": kind, "time": time.time(), **fields},
+                                                 separators=(",", ":")), flush=True)
+
+
 def f_to_c(f):
     return (f - 32) * 5.0 / 9.0
 
@@ -116,6 +125,7 @@ class WeatherCache:
                 self._fetch()
             except Exception as exc:  # noqa: BLE001
                 log(f"weather fetch failed: {exc}")
+                emit_event("weather_error")
             self.stop.wait(self.refresh)
 
     def _fetch(self):
@@ -181,6 +191,7 @@ class WeatherCache:
         with self.lock:
             self.data = payload
             self.updated = time.time()
+        emit_event("weather", payload=payload)
         log(f"weather updated: {payload['current']['temp_f']}F {condition}")
 
 
@@ -316,6 +327,8 @@ def session_server(ctx, bind, port, weather, time_sync, listener=None):
 def session_client(ctx, raw, addr, weather, time_sync):
     peer = addr[0]
     pings = [0]
+    session_id = uuid.uuid4().hex
+    identified = False
     try:
         raw.settimeout(180)
         conn = ctx.wrap_socket(raw, server_side=True)
@@ -345,10 +358,18 @@ def session_client(ctx, raw, addr, weather, time_sync):
             except json.JSONDecodeError:
                 log(f"non-JSON frame from {peer}: {body[:80]!r}")
                 continue
+            if not isinstance(msg, dict):
+                continue
+            if identified:
+                emit_event("seen", session=session_id)
             cmd = msg.get("command")
             if cmd == CMD_LOGIN:
                 log(f"LOGIN from {peer}: mac={msg.get('mac')} fw={msg.get('fwVer')}")
                 send_json(conn, {"command": CMD_LOGINACK})
+                if not identified:
+                    emit_event("login", session=session_id, peer=peer, mac=msg.get("mac"),
+                               firmware=str(msg.get("fwVer", ""))[:80])
+                    identified = True
             elif cmd == CMD_PING:
                 # The stat sends PING every 60s as its heartbeat (Timer(60) ->
                 # keepAlive). Echoing it back matters: inbound PING is the only
@@ -362,6 +383,8 @@ def session_client(ctx, raw, addr, weather, time_sync):
                 log(f"PING received from {peer} (#{pings[0]}, sequence={sequence})")
                 send_json(conn, {"command": CMD_PING, "sequence": sequence})
                 log(f"PING echo sent to {peer} (#{pings[0]}, sequence={sequence})")
+                if identified:
+                    emit_event("ping", session=session_id)
                 continue
             elif cmd == CMD_OBSERVEALERT:
                 # alert subscription push; no reply expected
@@ -392,6 +415,8 @@ def session_client(ctx, raw, addr, weather, time_sync):
                                      "location": data["location"],
                                      "data": json.dumps(data, separators=(",", ":"))})
                     log(f"weather sent to {peer}")
+                    if identified:
+                        emit_event("weather_sent", session=session_id)
             else:
                 log(f"unhandled command {cmd} from {peer}")
     except Exception as exc:  # noqa: BLE001
@@ -401,6 +426,8 @@ def session_client(ctx, raw, addr, weather, time_sync):
             conn.close()
         except OSError:
             pass
+        if identified:
+            emit_event("closed", session=session_id)
         log(f"session closed {peer}")
 
 

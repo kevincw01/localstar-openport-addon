@@ -33,9 +33,15 @@ def validate_options(options):
         ZoneInfo(tz)
     except (KeyError, ValueError) as exc:
         raise ValueError("Unknown IANA timezone") from exc
-    for key in ("sync_time", "allow_old_tls"):
-        if not isinstance(options.get(key, key == "sync_time"), bool):
+    for key in ("sync_time", "allow_old_tls", "mqtt_enabled", "mqtt_tls"):
+        if not isinstance(options.get(key, key in ("sync_time", "mqtt_enabled")), bool):
             raise ValueError(f"{key} must be true or false")
+    for key in ("mqtt_host", "mqtt_username", "mqtt_password"):
+        if not isinstance(options.get(key, ""), str):
+            raise ValueError(f"{key} must be text")
+    port = options.get("mqtt_port", 1883)
+    if isinstance(port, bool) or not isinstance(port, int) or not 1 <= port <= 65535:
+        raise ValueError("mqtt_port must be a port number from 1 through 65535")
     return options
 
 

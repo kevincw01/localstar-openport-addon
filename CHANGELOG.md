@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.0
+
+- Publish Open-Meteo weather and Skyport diagnostics through Home Assistant MQTT discovery.
+- Discover thermostats from successful Skyport logins, with stable IDs, connection status, last seen, ping echo, and weather response timestamps.
+- Report detected/connected counts, server status, weather freshness/fetch problems, and certificate expiry.
+- Detect the Supervisor MQTT service automatically or accept an explicit broker; MQTT failures do not stop Skyport.
+- Show weather and detected thermostats in the ingress Web UI, even without MQTT.
+
 ## 1.1.0
 
 - Add ingress-only certificate management with unique CA/server generation and existing-pair uploads.

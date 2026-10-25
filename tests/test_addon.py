@@ -17,6 +17,7 @@ import yaml
 
 from credential_fixture import generate
 import run_addon
+from mqtt_entities import VERSION
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -36,13 +37,17 @@ class TestAddon(unittest.TestCase):
         return {'latitude': 0.0, 'longitude': 0.0, 'timezone': 'Etc/UTC',
                 'certificate_file': 'localstar-openport/server-chain.pem',
                 'private_key_file': 'localstar-openport/server.key',
-                'sync_time': True, 'allow_old_tls': False}
+                'sync_time': True, 'allow_old_tls': False,
+                'mqtt_enabled': True, 'mqtt_host': '', 'mqtt_port': 1883,
+                'mqtt_username': '', 'mqtt_password': '', 'mqtt_tls': False}
 
     def test_metadata_and_ui_schema_match_runtime_options(self):
         config = yaml.safe_load((ROOT / 'config.yaml').read_text())
         repository = yaml.safe_load((ROOT / 'repository.yaml').read_text())
         translations = yaml.safe_load((ROOT / 'translations/en.yaml').read_text())
         self.assertEqual(config['name'], 'localstar-openport')
+        self.assertEqual(config['version'], VERSION)
+        self.assertEqual(config['services'], ['mqtt:want'])
         self.assertEqual(repository['name'], 'localstar-openport')
         self.assertEqual(set(config['schema']), set(self.options()))
         self.assertEqual(set(translations['configuration']), set(self.options()))
@@ -79,7 +84,10 @@ class TestAddon(unittest.TestCase):
         for key, value in [('latitude', None), ('latitude', True), ('latitude', float('nan')),
                            ('latitude', 91), ('longitude', -181), ('longitude', '0'),
                            ('timezone', None), ('timezone', 'invalid/timezone'),
-                           ('sync_time', 'false'), ('allow_old_tls', 'false')]:
+                           ('sync_time', 'false'), ('allow_old_tls', 'false'),
+                           ('mqtt_enabled', 'true'), ('mqtt_tls', 'false'),
+                           ('mqtt_host', None), ('mqtt_password', 123),
+                           ('mqtt_port', True), ('mqtt_port', 0), ('mqtt_port', 65536)]:
             with self.subTest(key=key, value=value), self.assertRaises(ValueError):
                 run_addon.command_from_options(self.options() | {key: value}, self.ssl_dir)
 

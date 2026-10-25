@@ -3,13 +3,18 @@
 import asyncio
 import contextlib
 import html
+import json
+import os
 from pathlib import Path
 import secrets
+import time
 
 from aiohttp import web
 
 from addon_config import server_command, ssl_file, validate_options
 from certificate_store import CertificateStore, validate_pair
+from telemetry import Telemetry
+from mqtt_entities import MqttEntities
 
 SUPERVISOR_IP = "172.30.32.2"
 WEB_DIRECTORY = Path(__file__).with_name("web")
@@ -27,6 +32,8 @@ class ServerManager:
         self.ready = set()
         self.error = None
         self.lock = asyncio.Lock()
+        self.telemetry = Telemetry(store.directory.parent)
+        self.mqtt = MqttEntities(self)
 
     def _external_profile(self):
         cert = ssl_file(self.options.get("certificate_file", "localstar-openport/server-chain.pem"), self.ssl_directory)
@@ -51,10 +58,17 @@ class ServerManager:
             except (OSError, ValueError, RuntimeError) as exc:
                 self.error = str(exc)
         self.watchdog = asyncio.create_task(self._watch(), name="skyport-process-watchdog")
+        self.mqtt.start()
 
     async def _read_output(self, process):
         while line := await process.stdout.readline():
             text = line.decode("utf-8", "replace").rstrip()
+            if text.startswith("LOCALSTAR_EVENT "):
+                try:
+                    self.telemetry.consume(json.loads(text.removeprefix("LOCALSTAR_EVENT ")))
+                except (ValueError, KeyError, TypeError):
+                    print("Ignored invalid child telemetry event.", flush=True)
+                continue
             print(text, flush=True)
             if "entry listener on " in text:
                 self.ready.add("entry")
@@ -66,7 +80,8 @@ class ServerManager:
                                           profile["certificate"], profile["key"])
         self.ready = set()
         self.process = await asyncio.create_subprocess_exec(
-            *command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
+            *command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
+            env=os.environ | {"LOCALSTAR_TELEMETRY": "1"})
         self.reader = asyncio.create_task(self._read_output(self.process), name="skyport-server-log")
         deadline = asyncio.get_running_loop().time() + 5
         while self.ready != {"entry", "session"}:
@@ -96,10 +111,13 @@ class ServerManager:
                 await self.reader
         self.reader = None
         self.ready = set()
+        self.telemetry.child_stopped()
 
     async def _watch(self):
         while True:
             await asyncio.sleep(5)
+            if time.time() - self.telemetry.last_saved >= 300:
+                self.telemetry.save()
             async with self.lock:
                 if self.profile is None:
                     continue
@@ -129,18 +147,21 @@ class ServerManager:
         self.profile = profile
 
     async def close(self):
+        await self.mqtt.close()
         if self.watchdog is not None:
             self.watchdog.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await self.watchdog
         async with self.lock:
             await self._stop_process()
+        self.telemetry.save()
 
     def status(self):
         running = self.process is not None and self.process.returncode is None and self.ready == {"entry", "session"}
         profile = self.profile or {}
         return {"server_running": running, "error": self.error,
                 "has_identity": bool(self.profile) or (self.store.directory / "current.json").exists(),
+                "mqtt": self.mqtt.status,
                 "certificate": {key: profile.get(key) for key in
                                 ("source", "fingerprint", "not_before", "expires", "root_available")}}
 
@@ -185,6 +206,11 @@ def create_application(options, data_directory="/data", ssl_directory="/ssl", *,
 
     async def status(request):
         return web.json_response(manager.status())
+
+    async def telemetry(request):
+        status = manager.status()
+        return web.json_response(manager.telemetry.snapshot(status["server_running"],
+                                                           status["certificate"]["expires"]))
 
     async def root_certificate(request):
         root = await asyncio.to_thread(manager.public_root)
@@ -231,6 +257,7 @@ def create_application(options, data_directory="/data", ssl_directory="/ssl", *,
 
     app.router.add_get("/", index)
     app.router.add_get("/api/status", status)
+    app.router.add_get("/api/telemetry", telemetry)
     app.router.add_get("/root-ca.pem", root_certificate)
     app.router.add_post("/api/{action:generate|upload}", provision)
     app.router.add_static("/static", WEB_DIRECTORY)

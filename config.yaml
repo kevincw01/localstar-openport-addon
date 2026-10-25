@@ -1,5 +1,5 @@
 name: localstar-openport
-version: "1.1.0"
+version: "1.2.0"
 slug: localstar_openport
 description: Local Skyport weather and time server for Venstar ColorTouch thermostats
 url: https://github.com/kevincw01/localstar-openport-addon
@@ -14,6 +14,8 @@ ingress_port: 8099
 panel_icon: mdi:certificate
 panel_title: localstar-openport
 panel_admin: true
+services:
+  - mqtt:want
 ports:
   9001/tcp: 9001
   41414/tcp: 41414
@@ -31,6 +33,12 @@ options:
   private_key_file: localstar-openport/server.key
   sync_time: true
   allow_old_tls: false
+  mqtt_enabled: true
+  mqtt_host: ""
+  mqtt_port: 1883
+  mqtt_username: ""
+  mqtt_password: ""
+  mqtt_tls: false
 schema:
   latitude: float(-90,90)
   longitude: float(-180,180)
@@ -39,3 +47,9 @@ schema:
   private_key_file: str
   sync_time: bool
   allow_old_tls: bool
+  mqtt_enabled: bool
+  mqtt_host: str
+  mqtt_port: port
+  mqtt_username: str
+  mqtt_password: password
+  mqtt_tls: bool
