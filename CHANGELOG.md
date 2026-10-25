@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.13
+
+- Add complete thermostat SD-card root CA import and restart instructions to the Web UI and documentation.
+
 ## 1.2.12
 
 - Upload certificate files as multipart data so Android file providers can pass selected files without browser-side text reads.

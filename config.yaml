@@ -1,5 +1,5 @@
 name: localstar-openport
-version: "1.2.12"
+version: "1.2.13"
 slug: localstar_openport
 description: Skyport may be stopped even when this add-on says Running. Open Web UI for live status; if setup is required, generate a certificate, key, and root CA or upload your existing files.
 url: https://github.com/kevincw01/localstar-openport-addon

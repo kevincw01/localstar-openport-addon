@@ -44,8 +44,11 @@ to generate or upload them.
 3. Use Rufus or another disk-image writer to write the `.img` file to an SD card.
    In Rufus, choose **DD Image mode** if prompted; writing erases the selected card.
 4. On the thermostat, open **SD Card → Import/Export**, choose **Custom Images**
-   only, and complete the import. Cancel any firmware upgrade prompt. The import
-   clears custom wallpapers. Restart the thermostat and verify TLS login in the
+   only, and complete the import. If prompted to update firmware, cancel: this
+   image imports the public Skyport root CA and does not install firmware.
+5. Remove the card and restart the thermostat so it reloads the root CA. Restart
+   from **Menu → Settings → Installation Settings → Restart Thermostat**, or
+   remove the thermostat from its base and reinstall it. Verify TLS login in the
    add-on log.
 
 The CA's private key and the server key stay in the add-on. The web interface
