@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.1
+
+- Inherit HA's home latitude, longitude, and timezone by default; retain optional per-field overrides.
+- Replace the timezone text field with a dropdown of IANA zones and a Home Assistant default.
+- Cache the last valid HA location privately for Core outages; retry first-start resolution without changing credentials.
+- Read HA configuration through the Supervisor Core API using the add-on's automatically supplied token.
+
 ## 1.2.0
 
 - Publish Open-Meteo weather and Skyport diagnostics through Home Assistant MQTT discovery.

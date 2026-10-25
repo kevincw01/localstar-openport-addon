@@ -18,14 +18,14 @@ configuration:
     name: MQTT TLS
     description: Verify the broker certificate using public system roots. Used only with an explicit host.
   latitude:
-    name: Latitude
-    description: Your weather location's latitude, from -90 to 90.
+    name: Latitude override (optional)
+    description: Leave unset to use Home Assistant's home latitude. An override must be between -90 and 90.
   longitude:
-    name: Longitude
-    description: Your weather location's longitude, from -180 to 180.
+    name: Longitude override (optional)
+    description: Leave unset to use Home Assistant's home longitude. An override must be between -180 and 180.
   timezone:
     name: Timezone
-    description: IANA timezone for the thermostat's local clock, for example Europe/London.
+    description: Select Home Assistant to inherit HA's timezone, or choose an IANA timezone override. Restart to apply location or timezone changes.
   certificate_file:
     name: External certificate chain (optional fallback)
     description: Path relative to /ssl, used only until credentials are generated or uploaded in Web UI.

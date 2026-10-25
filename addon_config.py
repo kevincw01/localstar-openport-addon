@@ -18,19 +18,23 @@ def ssl_file(filename, ssl_directory):
     return path
 
 
-def validate_options(options):
+def validate_options(options, *, allow_inherit=False):
     if not isinstance(options, dict):
         raise ValueError("Add-on options must be a JSON object")
     for key, bound in (("latitude", 90), ("longitude", 180)):
         value = options.get(key)
+        if allow_inherit and value is None:
+            continue
         if (isinstance(value, bool) or not isinstance(value, (int, float)) or
                 not math.isfinite(value) or not -bound <= value <= bound):
             raise ValueError(f"Set {key} to a number between {-bound} and {bound}")
     tz = options.get("timezone")
-    if not isinstance(tz, str) or not tz:
+    inherited_timezone = allow_inherit and tz in (None, "", "Home Assistant")
+    if not inherited_timezone and (not isinstance(tz, str) or not tz):
         raise ValueError("Set timezone to an IANA name, such as Etc/UTC")
     try:
-        ZoneInfo(tz)
+        if not inherited_timezone:
+            ZoneInfo(tz)
     except (KeyError, ValueError) as exc:
         raise ValueError("Unknown IANA timezone") from exc
     for key in ("sync_time", "allow_old_tls", "mqtt_enabled", "mqtt_tls"):

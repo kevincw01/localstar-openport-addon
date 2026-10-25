@@ -8,5 +8,6 @@
 !certificate_store.py
 !telemetry.py
 !mqtt_entities.py
+!location.py
 !web/
 !web/**

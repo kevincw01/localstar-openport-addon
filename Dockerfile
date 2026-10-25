@@ -6,7 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
-COPY server.py run_addon.py addon_config.py management.py certificate_store.py telemetry.py mqtt_entities.py ./
+COPY server.py run_addon.py addon_config.py management.py certificate_store.py telemetry.py mqtt_entities.py location.py ./
 COPY web/ ./web/
 
 EXPOSE 9001/tcp 41414/tcp 8099/tcp

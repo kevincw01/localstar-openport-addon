@@ -13,7 +13,8 @@ The existing Venstar integration continues to provide HVAC controls and entities
 2. Add `https://github.com/kevincw01/localstar-openport-addon`.
 3. Find **localstar-openport** and select **Install**. The image is built on your
    HA machine, so the first installation can take several minutes and needs internet.
-4. Configure your latitude, longitude, and IANA timezone, then start the add-on.
+4. Start the add-on. It inherits HA's home latitude, longitude, and timezone;
+   use the optional coordinate overrides or timezone dropdown if needed.
 5. Open **Web UI** and generate new credentials or upload your existing pair.
 6. Enable **Start on boot** and **Watchdog** on the add-on's Info tab.
 
@@ -107,8 +108,16 @@ part of the add-on's private `/data` directory.
 
 ## Configuration
 
-Latitude, longitude, and timezone have no installation defaults: fill them in
-before starting. Example only, using London:
+Leave latitude/longitude unset to inherit Home Assistant's configured home
+location. The timezone dropdown defaults to **Home Assistant**, or you can select
+an explicit IANA zone. An override is applied independently to each field, so a
+coordinate of zero is a valid explicit value. Example using HA's location:
+
+```yaml
+timezone: Home Assistant
+```
+
+To override the location, set the optional fields. Example only, using London:
 
 ```yaml
 latitude: 51.5074
@@ -124,6 +133,20 @@ The certificate/key path options apply to the optional file-based fallback only.
 They are relative to `/ssl` and must resolve inside that directory.
 Absolute paths and escaping symlinks are rejected. The add-on validates the matching
 key/certificate pair and location options before launching the server.
+
+Location defaults are read from HA's `/api/config` using the Supervisor Core
+proxy and its automatically provided token. This requires the add-on's declared
+`homeassistant_api` permission; you do not need to create or paste a token.
+Only latitude, longitude, and timezone are cached in the private
+`/data/location.json` file. If Core is down, the last valid cache is used.
+On first installation without a cache, startup waits and retries every 30 seconds
+until Core is available. Specifying all three fields explicitly avoids this
+dependency. Credentials are not regenerated while waiting.
+
+HA location/timezone changes are picked up when this add-on restarts. After
+upgrading from a manually configured release, clear each coordinate override
+you want to inherit and select **Home Assistant** in the timezone dropdown;
+existing explicit settings are preserved. Refresh the store to see the update.
 
 Time responses contain local wall-clock time encoded as epoch milliseconds, as the
 thermostat expects. Set `sync_time: false` to disable these responses. Enable
@@ -223,7 +246,8 @@ can remain blocked from the internet. Do not expose either listener publicly.
 To migrate an existing standalone server:
 
 1. Back up its configuration and working certificate/key pair.
-2. Install this add-on, configure location, start it, and open **Web UI**.
+2. Install this add-on, review its inherited location or overrides, start it,
+   and open **Web UI**.
 3. Upload the working server chain/key and confirm both listeners appear in its logs.
 4. Change your firewall's Skyport destination to the HA host and change the local
    DNS override for **`connect.skyport.io`** to the HA host's LAN address.
@@ -244,8 +268,10 @@ server. DNS changes do not move an already established session.
 
 ## Troubleshooting
 
-- **Configuration error:** set all three location fields, check timezone spelling,
-  then open Web UI to generate or upload credentials. For the legacy file-based
+- **Waiting for HA location:** start Core or specify all three location fields
+  explicitly. Once resolved, a private cache supports starts while Core is down.
+- **Configuration error:** check coordinate override ranges and the timezone
+  selection, then open Web UI to generate or upload credentials. For the legacy file-based
   setup, check certificate/key paths below `/ssl` and that the pair matches.
 - **Web UI says forbidden:** open it using HA's **Open Web UI** button. Direct
   connections to the internal management port are deliberately denied.
@@ -259,4 +285,4 @@ server. DNS changes do not move an already established session.
   fresh request. Automatic rendering recovery is not guaranteed by this server.
 - **Weather fetch failed:** check the add-on host's HTTPS/DNS internet access.
   The cache is currently in memory and an initial weather fetch is needed after
-  every add-on restart. No HA Core API or token is required.
+  every add-on restart. Weather queries themselves do not use the HA Core API.

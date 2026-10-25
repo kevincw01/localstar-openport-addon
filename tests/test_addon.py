@@ -59,9 +59,20 @@ class TestAddon(unittest.TestCase):
         self.assertTrue(config['ingress'])
         self.assertEqual(config['ingress_port'], 8099)
         self.assertNotIn('8099/tcp', config['ports'])
-        for key in ('latitude', 'longitude', 'timezone'):
-            self.assertIsNone(config['options'][key])
-        for key in ('hassio_api', 'homeassistant_api', 'docker_api', 'full_access', 'host_network'):
+        for key in ('latitude', 'longitude'):
+            self.assertNotIn(key, config['options'])
+            self.assertTrue(config['schema'][key].endswith('?'))
+        self.assertEqual(config['options']['timezone'], 'Home Assistant')
+        zones = config['schema']['timezone'].removeprefix('list(').removesuffix(')').split('|')
+        self.assertEqual(zones[0], 'Home Assistant')
+        self.assertIn('Etc/UTC', zones)
+        self.assertIn('Europe/London', zones)
+        self.assertGreater(len(zones), 500)
+        from zoneinfo import ZoneInfo
+        for zone in zones[1:]:
+            ZoneInfo(zone)
+        self.assertTrue(config['homeassistant_api'])
+        for key in ('hassio_api', 'docker_api', 'full_access', 'host_network'):
             self.assertFalse(config.get(key, False))
 
     def test_options_map_to_arguments_and_preserve_certificates(self):

@@ -17,8 +17,9 @@ SD-card credential builder are maintained separately in
    on versions using that name).
 2. Add `https://github.com/kevincw01/localstar-openport-addon`.
 3. Install **localstar-openport**. The container builds locally on your HA host.
-4. Set your latitude, longitude, and IANA timezone in Configuration, then start
-   the add-on. Enable **Start on boot** and **Watchdog**.
+4. Start the add-on; latitude, longitude, and timezone default to Home Assistant's
+   home settings. Optional coordinates and the timezone dropdown provide overrides.
+   Enable **Start on boot** and **Watchdog**.
 5. Open **Web UI**. For a new installation, choose **Generate and activate**, then
    download the public root CA for the SD-card tool. To migrate a server, choose
    **Upload and activate** with its existing certificate chain and matching key.
@@ -26,7 +27,9 @@ SD-card credential builder are maintained separately in
    thermostat access to TCP ports **9001** and **41414** there. Keep host port 41414.
 
 One installation serves multiple thermostats. Supports **aarch64** and **amd64**.
-No HACS installation, HA API token, or privileged host access is required.
+No HACS installation, manually created HA token, or privileged host access is required.
+The add-on uses its Supervisor-provided Core API access to read HA's location;
+the last valid location is cached privately for starts while Core is unavailable.
 The ingress page offers two certificate workflows:
 
 - **Generate:** create a unique epoch-valid CA and matching server certificate,
@@ -75,6 +78,7 @@ docker build -t localstar-openport:test .
 python3 tests/smoke_addon.py
 python3 tests/smoke_certificates.py
 python3 tests/smoke_mqtt.py
+python3 tests/smoke_location.py
 ```
 
 The unit/TLS tests use disposable keys, synthetic weather, and local sockets.
@@ -86,6 +90,10 @@ The provisioning smoke test uses an isolated Docker network to verify the
 Supervisor-only ingress gate, generation, upload, persistence, and child recovery.
 The MQTT smoke test starts a disposable loopback-only Mosquitto container and
 drives real TLS clients with synthetic weather through MQTT discovery/state.
+The location smoke test uses a disposable Core API proxy to check inheritance,
+timezone changes, and cached recovery without touching an HA installation.
+Refresh the published timezone choices with `python3 tools/update_timezones.py`
+after updating the development environment's IANA data.
 
 The server implementation is maintained here for add-on releases. The standalone
 project has its own copy; protocol fixes should be carried to both repositories.
