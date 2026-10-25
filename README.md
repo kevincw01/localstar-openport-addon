@@ -67,29 +67,3 @@ Thermostats are discovered when they log in to this server. HA can rename the
 resulting devices to match your rooms. This reports the Skyport connection;
 the existing Venstar integration still supplies thermostat controls and indoor
 measurements. Weather values do not prove that a thermostat rendered its screen.
-
-## Development and tests
-
-```sh
-python3 -m pip install -r requirements-dev.txt
-python3 -m unittest discover -s tests -v
-docker build -t localstar-openport:test .
-python3 tests/smoke_addon.py
-python3 tests/smoke_certificates.py
-python3 tests/smoke_mqtt.py
-python3 tests/smoke_location.py
-```
-
-The unit/TLS tests use disposable keys, synthetic weather, and local sockets.
-The Docker smoke test uses temporary credentials, loopback-only host ports,
-and live Open-Meteo data; `--skip-weather` skips provider access.
-Use `--sudo` if your Docker daemon requires it. These tests can be run locally;
-GitHub Actions test workflows are not configured. The add-on supports ARM64 and amd64.
-The provisioning smoke test uses an isolated Docker network to verify the
-Supervisor-only ingress gate, generation, upload, persistence, and child recovery.
-The MQTT smoke test starts a disposable loopback-only Mosquitto container and
-drives real TLS clients with synthetic weather through MQTT discovery/state.
-The location smoke test uses a disposable Core API proxy to check inheritance,
-static settings, explicit timezone changes, and recovery without touching an HA installation.
-Refresh the published timezone choices with `python3 tools/update_timezones.py`
-after updating the development environment's IANA data.
