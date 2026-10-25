@@ -35,23 +35,19 @@ All three files are stored in persistent add-on data. Successful generation/uplo
 fills the certificate, key, and root CA path fields in HA Configuration before
 starting Skyport. Generate/upload actions replace an existing saved identity if one exists.
 The SD-card image builder asks for the firmware version shown on the thermostat's
-About screen; it uses this to ensure the thermostat validates the sd card. If you dont use the correct version number, the thermostat may not allow you to import the new root CA.
+About screen; it uses this to ensure the thermostat validates the sd card. If you dont use the correct version number, the thermostat may not allow you to import the new root CA.  The about screen is found by clicking the down arrow at the top of the home screen followed by the gear icon.
 
 ![Thermostat About screen showing the firmware version VH6.93](web/thermostat-about-firmware.jpg)
 
 Enter the value shown beside **Firmware**, including the `VH` prefix.
 
-After downloading the SD-card image from the add-on Web UI, write the `.img` file
-to an SD card with Rufus or another disk-image writer. Choose **DD Image mode**
-if Rufus prompts you; writing the image erases the selected card. Then:
-
+Generate the SD card image using the button and download it to your desktop. Write the `.img` file to an SD card with Rufus or another disk-image writer. Choose **DD Image mode** if Rufus prompts you.
+Then:
 1. Eject the card, insert it into the thermostat, and open **SD Card →
    Import/Export**.
 2. Choose **Custom Images** only and complete the import. If the thermostat
-   prompts you to update firmware, cancel the prompt. The image imports the
-   public root CA; it does not install firmware. Importing images clears custom
-   wallpapers.
-3. Remove the card and restart the thermostat so it reloads the root CA.
+   prompts you to update firmware, something is wrong; cancel the prompt. The sd card image only replaces the existing skyport public root CA on the thermostat with one that you generated in this add-on; it does not install firmware.
+3. Remove the card and restart the thermostat so it reloads the root CA.  Restart can be achieved by removing smd reinstalling the thermostat from the base or menu->settings->installation settings->restart thermostat.
 
 ## Home Assistant entities
 
