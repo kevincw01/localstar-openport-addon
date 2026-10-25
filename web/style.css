@@ -18,6 +18,9 @@ p { margin:0 0 18px; }
 label { display:block; font-weight:600; font-size:13px; margin:0 0 14px; }
 input { display:block; width:100%; margin-top:7px; padding:9px; border:1px solid var(--line); border-radius:7px; background:var(--bg); color:var(--ink); font:inherit; }
 input[type=file] { padding:9px; }
+.firmware-example { margin:0 0 18px; max-width:620px; }
+.firmware-example img { display:block; width:100%; height:auto; border:1px solid var(--line); border-radius:8px; }
+.firmware-example figcaption { margin-top:6px; color:var(--muted); font-size:13px; }
 button,.button { display:inline-block; border:0; border-radius:7px; padding:11px 16px; font:650 14px system-ui,sans-serif; background:var(--accent); color:#fff; cursor:pointer; text-decoration:none; }
 button:disabled { opacity:.55; cursor:wait; }
 .secondary { background:var(--bg); color:var(--accent); border:1px solid var(--line); margin-bottom:12px; }

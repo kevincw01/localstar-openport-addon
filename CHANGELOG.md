@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.10
+
+- Add a thermostat About-screen photo to show where to find the firmware version for SD-card image creation.
+
 ## 1.2.9
 
 - Replace the public-root download with a downloadable raw SD-card image.

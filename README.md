@@ -56,6 +56,10 @@ automatically on restart. Generate/upload actions replace the saved identity whe
 The SD-card image builder asks for the firmware version shown on the thermostat's
 About screen; it writes the four-byte version stub, gallery index, and active public
 root CA without including or applying firmware.
+
+![Thermostat About screen showing the firmware version VH6.93](web/thermostat-about-firmware.jpg)
+
+Enter the value shown beside **Firmware**, including the `VH` prefix.
 The management port is accessible only through Home Assistant ingress.
 Clearing any of the three paths and restarting returns to setup mode while
 retaining stored credentials. Blank fields never select a stored identity or
