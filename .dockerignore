@@ -10,5 +10,6 @@
 !mqtt_entities.py
 !location.py
 !supervisor_options.py
+!sd_card_image.py
 !web/
 !web/**

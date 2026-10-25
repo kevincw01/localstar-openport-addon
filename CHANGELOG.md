@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.11
+
+- Include the SD-card image builder in the Docker build context so the add-on image builds successfully.
+
 ## 1.2.10
 
 - Add a thermostat About-screen photo to show where to find the firmware version for SD-card image creation.
